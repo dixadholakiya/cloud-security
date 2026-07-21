@@ -1,0 +1,24 @@
+flowchart TD
+    subgraph CorpCloud ["Corporate Cloud Environment"]
+        Cloud["Enterprise Cloud Storage (OneDrive / Box / Google Drive)"]
+    end
+
+    subgraph VictimClient ["Victim Endpoint Client"]
+        Endpoint["Victim Workstation"]
+        DB["Local Storage Archive (OAuth Refresh Token)"]
+    end
+
+    subgraph AdversaryOps ["Adversary Operations"]
+        C2["Attacker Command & Control"]
+        RogueClient["Attacker Rogue Sync Client"]
+    end
+
+    Endpoint -->|Normal Operations| Cloud
+    DB -.->|1. Exfiltrated by Endpoint Malware| C2
+    C2 -->|2. Injects Session Token| RogueClient
+    RogueClient -->|3. Silent Sync Request Bypassing Username and MFA| Cloud
+    Cloud -->|4. Drops Proprietary Corporate Files| RogueClient
+
+    style DB fill:#fff3cd,stroke:#ffc107,stroke-width:1px
+    style Cloud fill:#d4edda,stroke:#28a745,stroke-width:2px
+    style RogueClient fill:#f8d7da,stroke:#dc3545,stroke-width:2px

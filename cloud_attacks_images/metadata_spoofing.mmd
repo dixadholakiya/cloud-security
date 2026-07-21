@@ -1,0 +1,10 @@
+flowchart LR
+    A["External Attacker"] -->|1. Sends Malicious Request URL=http://169.254.169.254/...| B["Vulnerable Web App Server"]
+    B -->|2. Blindly Proxies HTTP GET Request| C["Local Cloud IMDS (169.254.169.254)"]
+    C -->|3. Generates Security Tokens| B
+    B -->|4. Exfiltrates IAM Admin Credentials| A
+    A -->|5. Uses Stolen Tokens| D["Cloud Provider Control Plane API"]
+
+    style C fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    style B fill:#f8d7da,stroke:#dc3545,stroke-width:2px
+    style D fill:#d4edda,stroke:#28a745,stroke-width:2px

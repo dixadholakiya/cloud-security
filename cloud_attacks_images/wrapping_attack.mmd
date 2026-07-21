@@ -1,0 +1,19 @@
+flowchart TD
+    subgraph SOAP_Payload ["SOAP/XML Envelope Payload"]
+        A["wsse:Security (Legitimate Signature Block)"]
+        B["soapenv:Body ID='Original' (Legitimate User Request)"]
+        C["soapenv:Body ID='Malicious' (Attacker Injected Commands)"]
+    end
+
+    D["XML Parser Engine"]
+    E["Application Business Logic"]
+
+    A -->|1. Validates Identity| D
+    B -->|2. Matches Signature Reference| D
+    D -->|3. Signature Pass / Trust Granted| E
+    C -.->|4. Executes Malicious Payload| E
+
+    style A fill:#d4edda,stroke:#28a745,stroke-width:2px
+    style B fill:#e2e3e5,stroke:#383d41,stroke-width:1px
+    style C fill:#f8d7da,stroke:#dc3545,stroke-width:2px,stroke-dasharray: 5 5
+    style E fill:#fff3cd,stroke:#ffc107,stroke-width:2px

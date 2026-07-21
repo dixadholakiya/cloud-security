@@ -957,14 +957,22 @@
           
           <!-- Left Panel: Interactive Simulation Lab -->
           <div class="sim-panel">
-            <div class="sim-panel-title">
-              <span>Interactive Laboratory</span>
+            <div class="sim-panel-title" style="flex-wrap: wrap; gap: 0.5rem; justify-content: space-between;">
+              <div class="code-tabs" role="tablist" style="border-bottom: none; margin-bottom: 0;">
+                <button type="button" class="code-tab-btn active" id="btn-tab-lab" role="tab" aria-selected="true" style="padding-top: 0; padding-bottom: 0.35rem;">Interactive Lab</button>
+                <button type="button" class="code-tab-btn" id="btn-tab-diagram" role="tab" aria-selected="false" style="padding-top: 0; padding-bottom: 0.35rem;">Diagram View</button>
+              </div>
               <span id="lab-step-indicator" style="font-size: 0.85rem; font-weight: 500; color: var(--dark-muted);">Step: Ready</span>
             </div>
 
             <!-- Dynamic Simulator Content Containers -->
             <div id="sim-playground-container" style="flex-grow: 1; display: flex; flex-direction: column;">
               <!-- Container elements will be dynamically updated by JS -->
+            </div>
+
+            <!-- Architectural Diagram Container (initially hidden) -->
+            <div id="sim-diagram-container" style="display: none; flex-grow: 1; justify-content: center; align-items: center; padding: 1rem;">
+              <img id="sim-diagram-img" src="" alt="Architectural Diagram" style="max-height: 380px; width: auto; max-width: 100%; border: 1px solid var(--dark-border); border-radius: 6px; background: rgba(0,0,0,0.15); box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
             </div>
 
             <!-- Console Log Panel -->
@@ -1297,7 +1305,15 @@ def hunt_co_residency(cloud_api, victim_ip):
     const remediationToggle = document.getElementById('remediation-toggle');
     const stepIndicator = document.getElementById('lab-step-indicator');
 
+    // New Tab elements for Interactive Lab vs Diagram
+    const btnTabLab = document.getElementById('btn-tab-lab');
+    const btnTabDiagram = document.getElementById('btn-tab-diagram');
+    const playgroundView = document.getElementById('sim-playground-container');
+    const diagramView = document.getElementById('sim-diagram-container');
+    const diagramImg = document.getElementById('sim-diagram-img');
+
     let currentCodeTab = 'defense'; // 'defense' or 'attack'
+    let currentMainTab = 'lab';    // 'lab' or 'diagram'
 
     // ----------------------------------------------------
     // INITIALIZATION
@@ -1327,6 +1343,10 @@ def hunt_co_residency(cloud_api, victim_ip):
       btnTab1.addEventListener('click', () => setCodeTab('defense'));
       btnTab2.addEventListener('click', () => setCodeTab('attack'));
 
+      // Main panel views tab handlers
+      btnTabLab.addEventListener('click', () => setMainTab('lab'));
+      btnTabDiagram.addEventListener('click', () => setMainTab('diagram'));
+
       // Load initial attack
       loadAttack('soap-xml');
     });
@@ -1334,6 +1354,57 @@ def hunt_co_residency(cloud_api, victim_ip):
     // ----------------------------------------------------
     // ENGINE FUNCTIONS
     // ----------------------------------------------------
+    function setMainTab(tab) {
+      currentMainTab = tab;
+      if (tab === 'lab') {
+        btnTabLab.classList.add('active');
+        btnTabDiagram.classList.remove('active');
+        btnTabLab.setAttribute('aria-selected', 'true');
+        btnTabDiagram.setAttribute('aria-selected', 'false');
+        
+        playgroundContainer.style.display = 'flex';
+        simConsole.style.display = 'flex';
+        simControls.style.display = 'flex';
+        stepIndicator.style.display = 'inline';
+        diagramView.style.display = 'none';
+      } else {
+        btnTabDiagram.classList.add('active');
+        btnTabLab.classList.remove('active');
+        btnTabDiagram.setAttribute('aria-selected', 'true');
+        btnTabLab.setAttribute('aria-selected', 'false');
+        
+        playgroundContainer.style.display = 'none';
+        simConsole.style.display = 'none';
+        simControls.style.display = 'none';
+        stepIndicator.style.display = 'none';
+        diagramView.style.display = 'flex';
+        
+        updateDiagramImage();
+      }
+    }
+
+    function updateDiagramImage() {
+      let src = '';
+      switch(currentAttack) {
+        case 'soap-xml':
+          src = 'cloud_attacks_images/wrapping_attack.svg';
+          break;
+        case 'cross-vm':
+          src = 'cloud_attacks_images/cross_vm.svg';
+          break;
+        case 'ssrf-imds':
+          src = 'cloud_attacks_images/metadata_spoofing.svg';
+          break;
+        case 'mitc':
+          src = 'cloud_attacks_images/man_in_the_cloud.svg';
+          break;
+        case 'vm-isolation':
+          src = 'cloud_attacks_images/cross_vm.svg'; // Reuse co-residency diagram
+          break;
+      }
+      diagramImg.src = src;
+    }
+
     function loadAttack(id) {
       currentAttack = id;
       const data = ATTACK_VECTORS[id];
@@ -1358,6 +1429,9 @@ def hunt_co_residency(cloud_api, victim_ip):
       remediationToggle.checked = false;
       remediationActive = false;
       updateThreatStatus();
+
+      // Reset view to interactive lab
+      setMainTab('lab');
 
       // Initialize playground & controls
       initPlayground();

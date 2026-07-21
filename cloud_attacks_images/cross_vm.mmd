@@ -1,0 +1,16 @@
+sequenceDiagram
+    autonumber
+    participant Attacker as Attacker VM
+    participant Cache as Shared CPU Cache Lines
+    participant Victim as Victim VM (Target)
+
+    Note over Attacker, Victim: Shared Physical CPU Socket (Multi-Tenancy)
+    
+    loop Prime and Probe Cycle
+        Attacker->>Cache: PRIME: Attacker fills cache lines with known data
+        Victim->>Cache: CRITICAL ACTION: Victim processes sensitive crypto operations
+        Note over Cache: Victim operations displace some of Attacker's cached lines
+        Attacker->>Cache: PROBE: Attacker reads back their data and measures time
+        Note over Attacker: Cache Miss = Long Delay, Cache Hit = Fast Access
+        Attacker->>Attacker: Analyzes timing variations to deduce cryptographic keys
+    end
