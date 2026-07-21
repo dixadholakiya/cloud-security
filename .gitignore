@@ -1,0 +1,9 @@
+.DS_Store
+*.pem
+*.docx
+*.pdf
+mykeypair.pem
+unit_2_cloud_security.docx
+aws_cloud_architecture_assignment.pdf
+assignment_submission.pdf
+scoutsuite-report/

