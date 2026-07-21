@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en" class="simulator-page">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Antigravity Cloud Management Console. Provision resources, manage VMs, inspect billing, and customize WAF firewall parameters.">
+  <title>Antigravity Cloud | Management Console</title>
+  <link rel="stylesheet" href="styles.css">
+  
+  <style>
+    /* Portal Dark Theme Variables */
+    :root {
+      --portal-bg: #090d16;
+      --portal-card: #111827;
+      --portal-border: #1f2937;
+      --portal-text: #f3f4f6;
+      --portal-muted: #9ca3af;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-orange: #f59e0b;
+      --glow-blue: rgba(59, 130, 246, 0.15);
+      --glow-green: rgba(16, 185, 129, 0.15);
+    }
+
+    body.portal-body {
+      background-color: var(--portal-bg);
+      background-image: radial-gradient(circle at 50% 50%, #111a2e 0%, #090d16 100%);
+      color: var(--portal-text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Auth Screen Center Card */
+    .auth-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-grow: 1;
+      padding: 2rem;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--portal-card);
+      border: 1px solid var(--portal-border);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .auth-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 0.5rem;
+      color: var(--portal-text);
+    }
+
+    .auth-subtitle {
+      font-size: 0.85rem;
+      color: var(--portal-muted);
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .form-group label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--portal-muted);
+    }
+
+    .form-input {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--portal-border);
+      border-radius: var(--radius-sm);
+      padding: 0.65rem 0.85rem;
+      color: var(--portal-text);
+      font-size: 0.9rem;
+      transition: all var(--transition-fast);
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 8px var(--glow-blue);
+    }
+
+    .btn-submit {
+      width: 100%;
+      background: var(--accent-blue);
+      color: #ffffff;
+      padding: 0.75rem;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 0.925rem;
+      cursor: pointer;
+      margin-top: 1rem;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .btn-submit:hover {
+      background: #2563eb;
+      transform: translateY(-1px);
+    }
+
+    .btn-submit:disabled {
+      background: #1d4ed8;
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    /* Spinner */
+    .spinner {
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Main Console Layout */
+    .console-wrapper {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: calc(100vh - var(--header-height));
+      flex-grow: 1;
+    }
+
+    .console-sidebar {
+      background: rgba(17, 24, 39, 0.6);
+      border-right: 1px solid var(--portal-border);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .console-nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      color: var(--portal-muted);
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-align: left;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .console-nav-btn:hover {
+      background: rgba(255,255,255,0.02);
+      color: var(--portal-text);
+    }
+
+    .console-nav-btn.active {
+      background: var(--glow-blue);
+      border-color: rgba(59, 130, 246, 0.2);
+      color: var(--accent-blue);
+    }
+
+    .console-content {
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      overflow-y: auto;
+    }
+
+    /* Metric Grid */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 1024px) {
+      .metric-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .metric-card {
+      background: var(--portal-card);
+      border: 1px solid var(--portal-border);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .metric-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--portal-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .metric-val {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--portal-text);
+    }
+
+    .metric-footer {
+      font-size: 0.75rem;
+      color: var(--accent-green);
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    /* Dashboard Layout Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 0.7fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel-card {
+      background: var(--portal-card);
+      border: 1px solid var(--portal-border);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .panel-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      border-bottom: 1px solid var(--portal-border);
+      padding-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Live Load Graph (SVG based) */
+    .chart-container {
+      height: 180px;
+      position: relative;
+      background: rgba(0,0,0,0.15);
+      border: 1px solid var(--portal-border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .chart-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* VM Manager Layout */
+    .vm-creation-form {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr) auto;
+      gap: 0.75rem;
+      align-items: flex-end;
+    }
+
+    @media (max-width: 768px) {
+      .vm-creation-form {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* VM Inventory Table */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .vm-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    .vm-table th {
+      border-bottom: 1px solid var(--portal-border);
+      padding: 0.75rem;
+      color: var(--portal-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    .vm-table td {
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      padding: 0.75rem;
+      color: var(--portal-text);
+      vertical-align: middle;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .status-badge.running {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--accent-green);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .status-badge.stopped {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--accent-red);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .status-badge.provisioning {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--accent-orange);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    /* Console Alerts Feed */
+    .console-feed {
+      background: #030712;
+      border: 1px solid var(--portal-border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: #10b981;
+      height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+    }
+
+    .feed-line {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .feed-line .timestamp {
+      color: var(--accent-blue);
+      user-select: none;
+    }
+
+    .feed-line.error { color: var(--accent-red); }
+    .feed-line.success { color: var(--accent-green); }
+    .feed-line.warning { color: var(--accent-orange); }
+
+    /* Security Config Options */
+    .sec-option-card {
+      border: 1px solid var(--portal-border);
+      border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.02);
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .select-dropdown {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--portal-border);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem;
+      color: var(--portal-text);
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+    }
+
+    /* Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 22px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #374151;
+      transition: .3s;
+      border-radius: 22px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px; width: 14px; left: 4px; bottom: 4px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--accent-green); }
+    input:checked + .slider:before { transform: translateX(22px); }
+  </style>
+</head>
+<body class="portal-body">
+
+  <!-- Navigation Header -->
+  <header class="navbar-container">
+    <div class="container">
+      <a href="index.html" class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 0.25rem;">
+          <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+        </svg>
+        <span>Antigravity Cloud</span>
+      </a>
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="simulator.html">Simulator</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li><a href="portal.html" class="active btn btn-primary" style="padding: 0.45rem 1rem; font-size: 0.85rem; color: #ffffff;">Console Portal</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Login Section (State 1) -->
+  <section class="auth-container" id="auth-section" aria-label="Authentication portal login">
+    <div class="auth-card">
+      <h1 class="auth-title">Console Sign In</h1>
+      <p class="auth-subtitle">Access your cloud management workspace</p>
+      
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-email">Account Email</label>
+          <input type="email" id="login-email" class="form-input" value="admin@antigravitycloud.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="login-password">Console Password</label>
+          <input type="password" id="login-password" class="form-input" value="••••••••••••" required autocomplete="current-password">
+        </div>
+        
+        <button type="submit" class="btn-submit" id="btn-login-submit">
+          <span>Authenticate Session</span>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Management Portal Layout (State 2: Logged In - initially hidden) -->
+  <section class="console-wrapper" id="console-section" style="display: none;" aria-label="Cloud Administration Dashboard">
+    
+    <!-- Console Sidebar Nav -->
+    <aside class="console-sidebar">
+      <div style="font-size: 0.75rem; font-weight: 700; color: var(--portal-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; padding-left: 0.75rem;">Workspace Nav</div>
+      <button type="button" class="console-nav-btn active" id="nav-btn-dash">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Dashboard Home
+      </button>
+      <button type="button" class="console-nav-btn" id="nav-btn-compute">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        Compute Instances
+      </button>
+      <button type="button" class="console-nav-btn" id="nav-btn-sec">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        WAF & Security
+      </button>
+      
+      <div style="margin-top: auto; border-top: 1px solid var(--portal-border); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+        <div style="font-size: 0.7rem; color: var(--portal-muted); padding-left: 0.75rem;">Account: dixadholakiya</div>
+        <button type="button" class="console-nav-btn" id="btn-logout" style="color: var(--accent-red); padding: 0.5rem 1rem;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Area -->
+    <main class="console-content">
+      
+      <!-- Metrics Overview Header -->
+      <div class="metric-grid">
+        <div class="metric-card">
+          <span class="metric-title">Estimated Monthly Spend</span>
+          <span class="metric-val">$1,248.50</span>
+          <span class="metric-footer">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            2.4% vs last week
+          </span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-title">Running Compute Nodes</span>
+          <span class="metric-val" id="metric-active-vms">2</span>
+          <span class="metric-footer" style="color: var(--portal-muted);" id="metric-total-vms">
+            Total provisioned: 2
+          </span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-title">Daily Egress Bandwidth</span>
+          <span class="metric-val">142.6 GB</span>
+          <span class="metric-footer">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            12.8% vs normal
+          </span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-title">Security Score Index</span>
+          <span class="metric-val" id="metric-security-score">78%</span>
+          <span class="metric-footer" id="metric-security-desc" style="color: var(--accent-orange);">
+            Medium Risk exposure
+          </span>
+        </div>
+      </div>
+
+      <!-- Tab View: 1. Dashboard Home -->
+      <div id="tab-content-dash" class="dashboard-grid">
+        <div class="panel-card">
+          <div class="panel-title">
+            <span>Bare-Metal Hypervisor CPU Load</span>
+            <span style="font-size: 0.75rem; color: var(--accent-green); font-weight: 500;" id="cpu-current-pct">Active: 14%</span>
+          </div>
+          <!-- Live Graph -->
+          <div class="chart-container">
+            <svg class="chart-svg" id="chart-svg-element" viewBox="0 0 500 180" preserveAspectRatio="none">
+              <!-- Animated Grid lines -->
+              <line x1="0" y1="45" x2="500" y2="45" stroke="#1f2937" stroke-dasharray="3 3"/>
+              <line x1="0" y1="90" x2="500" y2="90" stroke="#1f2937" stroke-dasharray="3 3"/>
+              <line x1="0" y1="135" x2="500" y2="135" stroke="#1f2937" stroke-dasharray="3 3"/>
+              <!-- Graph line -->
+              <path id="chart-path" fill="none" stroke="var(--accent-blue)" stroke-width="2.5" d="M 0 180"/>
+            </svg>
+          </div>
+          <div style="font-size: 0.8rem; color: var(--portal-muted);">Real-time CPU sampling interval: 1.5s. Pinning active: Core-scheduler balanced.</div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-title">Threat Assessment Panel</div>
+          <p style="font-size: 0.85rem; color: var(--portal-muted); line-height: 1.5;">Your workspace security score is evaluated in real-time. Unenforced rules or legacy metadata parameters reduce compliance index.</p>
+          <a href="simulator.html" class="btn btn-secondary" style="width: 100%; text-align: center; justify-content: center; padding: 0.5rem; font-size: 0.85rem;">
+            Open Attack Threat Lab
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- Tab View: 2. Compute Instance Manager -->
+      <div id="tab-content-compute" style="display: none;" class="panel-card">
+        <div class="panel-title">Compute Instance Manager</div>
+        
+        <!-- Provision VM Form -->
+        <div class="vm-creation-form">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="vm-name">Instance Name</label>
+            <input type="text" id="vm-name" class="form-input" placeholder="e.g. vm-app-server">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="vm-size">Instance Size</label>
+            <select id="vm-size" class="select-dropdown">
+              <option value="t3.micro">t3.micro (1 vCPU, 1GB RAM)</option>
+              <option value="t3.medium">t3.medium (2 vCPU, 4GB RAM)</option>
+              <option value="m5.large">m5.large (2 vCPU, 8GB RAM)</option>
+              <option value="c5.xlarge">c5.xlarge (4 vCPU, 8GB RAM)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="vm-os">Operating System</label>
+            <select id="vm-os" class="select-dropdown">
+              <option value="Ubuntu 24.04">Ubuntu Server 24.04 LTS</option>
+              <option value="Amazon Linux 2023">Amazon Linux 2023</option>
+              <option value="Windows Server 2025">Windows Server 2025</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="vm-region">Target Zone</label>
+            <select id="vm-region" class="select-dropdown">
+              <option value="us-east-1a">us-east-1a (N. Virginia)</option>
+              <option value="eu-central-1b">eu-central-1b (Frankfurt)</option>
+              <option value="ap-south-1a">ap-south-1a (Mumbai)</option>
+            </select>
+          </div>
+          <button type="button" class="btn btn-primary" id="btn-launch-vm" style="padding: 0.6rem 1.2rem; font-size: 0.85rem;">Provision VM</button>
+        </div>
+
+        <!-- Inventory List -->
+        <div class="table-container">
+          <table class="vm-table" id="vm-inventory-table">
+            <thead>
+              <tr>
+                <th>Instance ID/Name</th>
+                <th>Instance Type</th>
+                <th>OS Target</th>
+                <th>Internal IP</th>
+                <th>Status</th>
+                <th>Operations</th>
+              </tr>
+            </thead>
+            <tbody id="vm-table-body">
+              <!-- Initial rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab View: 3. Security (WAF / IMDS) -->
+      <div id="tab-content-sec" style="display: none;" class="dashboard-grid">
+        <!-- Firewall Rules -->
+        <div class="panel-card">
+          <div class="panel-title">Web Application Firewall (WAF) Profile</div>
+          
+          <div class="sec-option-card">
+            <div>
+              <strong style="display:block; font-size: 0.9rem;">Block SQL Injection (SQLi)</strong>
+              <span style="font-size: 0.75rem; color: var(--portal-muted);">Intercept queries targeting database parameters in request payloads.</span>
+            </div>
+            <label class="switch" aria-label="Toggle SQL Injection Protection">
+              <input type="checkbox" id="waf-sqli-toggle" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="sec-option-card">
+            <div>
+              <strong style="display:block; font-size: 0.9rem;">Block Cross-Site Scripting (XSS)</strong>
+              <span style="font-size: 0.75rem; color: var(--portal-muted);">Sanitize client headers and parameter inputs against script injects.</span>
+            </div>
+            <label class="switch" aria-label="Toggle Cross-Site Scripting Protection">
+              <input type="checkbox" id="waf-xss-toggle" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="sec-option-card">
+            <div>
+              <strong style="display:block; font-size: 0.9rem;">Restrict Local Address Proxying (SSRF Check)</strong>
+              <span style="font-size: 0.75rem; color: var(--portal-muted);">Filter incoming query URL strings targeting local network ranges.</span>
+            </div>
+            <label class="switch" aria-label="Toggle SSRF URL protection">
+              <input type="checkbox" id="waf-ssrf-toggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- IMDS Version Enforcement -->
+        <div class="panel-card">
+          <div class="panel-title">Instance Metadata Service (IMDS) Config</div>
+          <p style="font-size: 0.85rem; color: var(--portal-muted); line-height: 1.5;">Configuring IMDS constraints dictates how compute VMs retrieve node profile secrets.</p>
+          
+          <div class="form-group">
+            <label for="imds-select">Metadata Token Enforcement Policy</label>
+            <select id="imds-select" class="select-dropdown" style="width: 100%; margin-top: 0.25rem;">
+              <option value="v1">IMDSv1 Enabled (Token Optional - Legacy Vulnerable)</option>
+              <option value="v2">IMDSv2 Enforced (Session Token Required - Hardened)</option>
+            </select>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--portal-border); padding: 0.75rem; border-radius: 4px; font-size: 0.8rem; line-height: 1.4;">
+            <strong style="color: var(--accent-orange); display: block; margin-bottom: 0.25rem;">Security Advisor:</strong>
+            <span id="imds-advisor-text">IMDSv1 allows simple HTTP GET requests to retrieve cloud metadata, exposing nodes to SSRF-to-credential exfiltration. Upgrading to IMDSv2 requires HTTP PUT negotiation.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Console System Logs Feed -->
+      <div class="panel-card">
+        <div class="panel-title">Live System Logs Feed</div>
+        <div class="console-feed" id="console-feed-element">
+          <!-- Live events populate here -->
+        </div>
+      </div>
+
+    </main>
+  </section>
+
+  <!-- Footer Section -->
+  <footer class="site-footer" style="background: #090d16; border-top: 1px solid var(--portal-border); margin-top: auto;">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="logo" style="font-size: 1.15rem; color: var(--accent-blue);">
+            <span>Antigravity Cloud</span>
+          </div>
+          <p style="font-size: 0.85rem; color: var(--portal-muted);">Professional static and dynamic hosting services for business infrastructure.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <ul>
+            <li><a href="features.html" style="color: var(--portal-muted);">Features</a></li>
+            <li><a href="simulator.html" style="color: var(--portal-muted);">Attack Simulator</a></li>
+            <li><a href="portal.html" style="color: var(--portal-text); font-weight: 600;">Console Portal</a></li>
+            <li><a href="index.html#pricing-heading" style="color: var(--portal-muted);">Pricing</a></li>
+            <li><a href="contact.html" style="color: var(--dark-muted);">Security Policies</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="contact.html" style="color: var(--portal-muted);">About Us</a></li>
+            <li><a href="contact.html" style="color: var(--portal-muted);">Support</a></li>
+            <li><a href="contact.html" style="color: var(--portal-muted);">Privacy Terms</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom" style="border-top: 1px solid var(--portal-border); padding-top: 1rem; margin-top: 1.5rem;">
+        <p style="color: var(--portal-muted);">&copy; 2026 Antigravity Cloud Inc. All rights reserved.</p>
+        <p style="color: var(--portal-muted);">Built for AWS EC2 Deployment</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Portal Javascript Logic -->
+  <script>
+    // ----------------------------------------------------
+    // INVENTORY SEED DATA
+    // ----------------------------------------------------
+    let vmsList = [
+      { id: "i-0fd88fa301d2c10a1", name: "vm-web-proxy", size: "t3.micro", os: "Ubuntu 24.04", ip: "10.0.12.45", status: "running" },
+      { id: "i-09df14e82cd85010b", name: "vm-sql-node", size: "m5.large", os: "Amazon Linux 2023", ip: "10.0.12.82", status: "running" }
+    ];
+
+    let sqliBlocked = true;
+    let xssBlocked = true;
+    let ssrfBlocked = false;
+    let imdsVersion = 'v1';
+
+    // ----------------------------------------------------
+    // DOM CACHING
+    // ----------------------------------------------------
+    const authSection = document.getElementById('auth-section');
+    const consoleSection = document.getElementById('console-section');
+    const loginForm = document.getElementById('login-form');
+    const btnLoginSubmit = document.getElementById('btn-login-submit');
+
+    // Sidebar tab buttons
+    const navBtnDash = document.getElementById('nav-btn-dash');
+    const navBtnCompute = document.getElementById('nav-btn-compute');
+    const navBtnSec = document.getElementById('nav-btn-sec');
+    const btnLogout = document.getElementById('btn-logout');
+
+    // Tab sections
+    const tabDash = document.getElementById('tab-content-dash');
+    const tabCompute = document.getElementById('tab-content-compute');
+    const tabSec = document.getElementById('tab-content-sec');
+
+    // Control Elements
+    const inputVmName = document.getElementById('vm-name');
+    const selectVmSize = document.getElementById('vm-size');
+    const selectVmOs = document.getElementById('vm-os');
+    const selectVmRegion = document.getElementById('vm-region');
+    const btnLaunchVm = document.getElementById('btn-launch-vm');
+    const vmTableBody = document.getElementById('vm-table-body');
+    const consoleFeed = document.getElementById('console-feed-element');
+
+    // WAF Elements
+    const toggleSqli = document.getElementById('waf-sqli-toggle');
+    const toggleXss = document.getElementById('waf-xss-toggle');
+    const toggleSsrf = document.getElementById('waf-ssrf-toggle');
+    const selectImds = document.getElementById('imds-select');
+    const advisorText = document.getElementById('imds-advisor-text');
+
+    // Metric Values
+    const metricActiveVms = document.getElementById('metric-active-vms');
+    const metricTotalVms = document.getElementById('metric-total-vms');
+    const metricSecurityScore = document.getElementById('metric-security-score');
+    const metricSecurityDesc = document.getElementById('metric-security-desc');
+
+    // Live Graph Values
+    const cpuCurrentPct = document.getElementById('cpu-current-pct');
+    const chartPath = document.getElementById('chart-path');
+
+    // ----------------------------------------------------
+    // INITIALIZATION & TAB ROUTING
+    // ----------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      loginForm.addEventListener('submit', handleLogin);
+      
+      navBtnDash.addEventListener('click', () => switchTab('dash'));
+      navBtnCompute.addEventListener('click', () => switchTab('compute'));
+      navBtnSec.addEventListener('click', () => switchTab('sec'));
+      btnLogout.addEventListener('click', handleLogout);
+
+      btnLaunchVm.addEventListener('click', launchInstance);
+
+      // Security controls updates
+      toggleSqli.addEventListener('change', (e) => {
+        sqliBlocked = e.target.checked;
+        logEvent(`WAF rule config: SQLi filtering ${sqliBlocked ? 'ENABLED' : 'DISABLED'}.`, 'info');
+        recalculateSecurityScore();
+      });
+      toggleXss.addEventListener('change', (e) => {
+        xssBlocked = e.target.checked;
+        logEvent(`WAF rule config: XSS sanitation ${xssBlocked ? 'ENABLED' : 'DISABLED'}.`, 'info');
+        recalculateSecurityScore();
+      });
+      toggleSsrf.addEventListener('change', (e) => {
+        ssrfBlocked = e.target.checked;
+        logEvent(`WAF rule config: SSRF loopback-IP filter ${ssrfBlocked ? 'ENABLED' : 'DISABLED'}.`, 'info');
+        recalculateSecurityScore();
+      });
+      selectImds.addEventListener('change', (e) => {
+        imdsVersion = e.target.value;
+        logEvent(`Metadata Service policy shifted globally to IMDS${imdsVersion.toUpperCase()}`, imdsVersion === 'v2' ? 'success' : 'warning');
+        if (imdsVersion === 'v2') {
+          advisorText.textContent = "IMDSv2 is enforced. Simple GET SSRF request vectors are blocked natively because the hypervisor rejects metadata queries lacking custom X-aws-ec2-metadata-token header keys.";
+          advisorText.style.color = "var(--accent-green)";
+        } else {
+          advisorText.textContent = "IMDSv1 allows simple HTTP GET requests to retrieve cloud metadata, exposing nodes to SSRF-to-credential exfiltration. Upgrading to IMDSv2 requires HTTP PUT negotiation.";
+          advisorText.style.color = "var(--accent-orange)";
+        }
+        recalculateSecurityScore();
+      });
+
+      // Populate VMs table initially
+      renderVMsTable();
+    });
+
+    // ----------------------------------------------------
+    // AUTHENTICATION LOGIC
+    // ----------------------------------------------------
+    function handleLogin(e) {
+      e.preventDefault();
+      btnLoginSubmit.disabled = true;
+      btnLoginSubmit.innerHTML = `<span class="spinner"></span><span>Verifying credentials...</span>`;
+
+      // Mock delay
+      setTimeout(() => {
+        authSection.style.display = 'none';
+        consoleSection.style.display = 'grid';
+        
+        logEvent("Sign-in successful. Authenticated session initialized for user dixadholakiya.", "success");
+        logEvent("Console Dashboard initialized.", "info");
+        
+        // Start load graph drawing
+        startGraphAnimation();
+        recalculateSecurityScore();
+      }, 1200);
+    }
+
+    function handleLogout() {
+      consoleSection.style.display = 'none';
+      authSection.style.display = 'flex';
+      btnLoginSubmit.disabled = false;
+      btnLoginSubmit.innerHTML = `<span>Authenticate Session</span>`;
+      stopGraphAnimation();
+    }
+
+    function switchTab(target) {
+      navBtnDash.classList.remove('active');
+      navBtnCompute.classList.remove('active');
+      navBtnSec.classList.remove('active');
+
+      tabDash.style.display = 'none';
+      tabCompute.style.display = 'none';
+      tabSec.style.display = 'none';
+
+      if (target === 'dash') {
+        navBtnDash.classList.add('active');
+        tabDash.style.display = 'grid';
+      } else if (target === 'compute') {
+        navBtnCompute.classList.add('active');
+        tabCompute.style.display = 'flex';
+      } else if (target === 'sec') {
+        navBtnSec.classList.add('active');
+        tabSec.style.display = 'grid';
+      }
+    }
+
+    // ----------------------------------------------------
+    // LOG FEED CONSOLE
+    // ----------------------------------------------------
+    function logEvent(message, type = 'info') {
+      const line = document.createElement('div');
+      line.className = `feed-line ${type}`;
+      
+      const ts = document.createElement('span');
+      ts.className = 'timestamp';
+      ts.textContent = `[${new Date().toLocaleTimeString()}]`;
+      
+      const txt = document.createElement('span');
+      txt.textContent = ` ${message}`;
+      
+      line.appendChild(ts);
+      line.appendChild(txt);
+      consoleFeed.appendChild(line);
+      consoleFeed.scrollTop = consoleFeed.scrollHeight;
+    }
+
+    // ----------------------------------------------------
+    // COMPUTE MANAGER (PROVISION & CONTROL)
+    // ----------------------------------------------------
+    function generateIp() {
+      return `10.0.12.${Math.floor(Math.random() * 200) + 10}`;
+    }
+
+    function generateId() {
+      return `i-${Math.random().toString(16).substring(2, 19)}`;
+    }
+
+    function renderVMsTable() {
+      vmTableBody.innerHTML = '';
+      vmsList.forEach(vm => {
+        const row = document.createElement('tr');
+        row.id = `vm-row-${vm.id}`;
+
+        const statusClass = vm.status === 'running' ? 'running' : (vm.status === 'stopped' ? 'stopped' : 'provisioning');
+        
+        row.innerHTML = `
+          <td>
+            <strong style="display:block;">${vm.name}</strong>
+            <span style="font-size:0.75rem; color:var(--portal-muted); font-family:var(--font-mono);">${vm.id}</span>
+          </td>
+          <td style="font-family:var(--font-mono);">${vm.size}</td>
+          <td>${vm.os}</td>
+          <td style="font-family:var(--font-mono);">${vm.ip || '---'}</td>
+          <td>
+            <span class="status-badge ${statusClass}" id="vm-badge-${vm.id}">${vm.status}</span>
+          </td>
+          <td>
+            <div style="display:flex; gap:0.5rem;">
+              <button type="button" class="btn btn-secondary" style="padding:0.3rem 0.6rem; font-size:0.75rem;" onclick="toggleInstanceStatus('${vm.id}')">
+                ${vm.status === 'running' ? 'Stop' : 'Start'}
+              </button>
+              <button type="button" class="btn btn-secondary" style="padding:0.3rem 0.6rem; font-size:0.75rem; color:var(--accent-red); border-color:rgba(239, 68, 68, 0.15);" onclick="terminateInstance('${vm.id}')">
+                Terminate
+              </button>
+            </div>
+          </td>
+        `;
+        vmTableBody.appendChild(row);
+      });
+
+      // Update counters
+      const runningCount = vmsList.filter(vm => vm.status === 'running').length;
+      metricActiveVms.textContent = runningCount;
+      metricTotalVms.textContent = `Total provisioned: ${vmsList.length}`;
+    }
+
+    function launchInstance() {
+      const name = inputVmName.value.trim();
+      if (!name) {
+        alert("Please specify a compute instance label/name.");
+        return;
+      }
+
+      const size = selectVmSize.value;
+      const os = selectVmOs.value;
+      const id = generateId();
+      
+      const newVm = {
+        id: id,
+        name: name,
+        size: size,
+        os: os,
+        ip: null,
+        status: 'provisioning'
+      };
+
+      vmsList.push(newVm);
+      inputVmName.value = '';
+      renderVMsTable();
+      logEvent(`Submitted provision request for instance ${name} (${size}, ${os})`, 'info');
+
+      // Setup transition from provisioning to running
+      setTimeout(() => {
+        const vm = vmsList.find(v => v.id === id);
+        if (vm) {
+          vm.status = 'running';
+          vm.ip = generateIp();
+          renderVMsTable();
+          logEvent(`Instance ${name} provisioned successfully on dedicated core. Allocated IP: ${vm.ip}`, 'success');
+        }
+      }, 3000);
+    }
+
+    window.toggleInstanceStatus = function(id) {
+      const vm = vmsList.find(v => v.id === id);
+      if (!vm) return;
+
+      if (vm.status === 'running') {
+        vm.status = 'stopped';
+        logEvent(`Instance ${vm.name} stop request accepted. Shutting down system files.`, 'warning');
+      } else {
+        vm.status = 'running';
+        logEvent(`Instance ${vm.name} start request accepted. Booting system kernel.`, 'info');
+      }
+      renderVMsTable();
+    };
+
+    window.terminateInstance = function(id) {
+      const index = vmsList.findIndex(v => v.id === id);
+      if (index === -1) return;
+      
+      const vm = vmsList[index];
+      vmsList.splice(index, 1);
+      logEvent(`Instance ${vm.name} terminated. Physical hardware slots cleared.`, 'warning');
+      renderVMsTable();
+    };
+
+    // ----------------------------------------------------
+    // SECURITY ASSESSMENT LOGIC
+    // ----------------------------------------------------
+    function recalculateSecurityScore() {
+      let score = 40; // Base score
+      
+      if (sqliBlocked) score += 15;
+      if (xssBlocked) score += 15;
+      if (ssrfBlocked) score += 15;
+      if (imdsVersion === 'v2') score += 15;
+
+      metricSecurityScore.textContent = `${score}%`;
+
+      if (score >= 90) {
+        metricSecurityDesc.textContent = 'Compliance Excellent';
+        metricSecurityDesc.style.color = 'var(--accent-green)';
+      } else if (score >= 70) {
+        metricSecurityDesc.textContent = 'Medium Risk exposure';
+        metricSecurityDesc.style.color = 'var(--accent-orange)';
+      } else {
+        metricSecurityDesc.textContent = 'CRITICAL Vulnerabilities';
+        metricSecurityDesc.style.color = 'var(--accent-red)';
+      }
+    }
+
+    // ----------------------------------------------------
+    // LIVE GRAPH (SVG GRAPH ANIMATION)
+    // ----------------------------------------------------
+    let graphTimer = null;
+    let graphPoints = Array(20).fill(160); // Array of Y coordinates representing loads
+
+    function startGraphAnimation() {
+      if (graphTimer) clearInterval(graphTimer);
+      
+      graphTimer = setInterval(() => {
+        // Generate new CPU load value (Y axis goes from 10 to 170)
+        // 170 represents 0% load (bottom), 10 represents 100% load (top)
+        const loadPercentage = Math.floor(Math.random() * 45) + 5; // 5% to 50%
+        cpuCurrentPct.textContent = `Active: ${loadPercentage}%`;
+        
+        // Convert load percentage to Y coordinate
+        // (100% -> 10, 0% -> 170)
+        const newY = 170 - (loadPercentage * 1.6);
+        
+        // Slide points array to the left and append new point
+        graphPoints.shift();
+        graphPoints.push(newY);
+        
+        // Draw the SVG path
+        let pathD = `M 0 ${graphPoints[0]}`;
+        const step = 500 / 19; // X-axis interval spacing
+        for (let i = 1; i < 20; i++) {
+          const x = i * step;
+          pathD += ` L ${x} ${graphPoints[i]}`;
+        }
+        
+        chartPath.setAttribute('d', pathD);
+      }, 1500);
+    }
+
+    function stopGraphAnimation() {
+      if (graphTimer) {
+        clearInterval(graphTimer);
+        graphTimer = null;
+      }
+    }
+  </script>
+</body>
+</html>
